@@ -34,5 +34,12 @@ Thumbs.db
 credentials.json
 rate_state.json
 
+# Logs
+moltbook-agent/logs/
+
 # Benchmark results (generated)
-results.json
+results*.json
+
+# Claude Code (keep .claude/skills/, ignore the rest)
+.claude/*
+!.claude/skills/

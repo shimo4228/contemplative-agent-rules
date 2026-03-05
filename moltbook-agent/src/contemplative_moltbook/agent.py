@@ -9,7 +9,7 @@ from typing import List, Optional, Set
 
 from .auth import check_claim_status, load_credentials, register_agent
 from .client import MoltbookClient, MoltbookClientError
-from .config import FORBIDDEN_SUBSTRING_PATTERNS, FORBIDDEN_WORD_PATTERNS, MAX_POST_LENGTH
+from .config import FORBIDDEN_SUBSTRING_PATTERNS, FORBIDDEN_WORD_PATTERNS, MAX_POST_LENGTH, VALID_ID_PATTERN
 from .content import ContentManager
 from .llm import extract_topics, generate_reply, score_relevance
 from .memory import MemoryStore
@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 RELEVANCE_THRESHOLD = 0.5
 KNOWN_AGENT_THRESHOLD = 0.3
-_VALID_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 class AutonomyLevel(str, enum.Enum):
@@ -221,7 +220,7 @@ class Agent:
             return False
 
         # Validate post_id to prevent path traversal
-        if not _VALID_ID_PATTERN.match(post_id):
+        if not VALID_ID_PATTERN.match(post_id):
             logger.warning("Invalid post_id format: %s", post_id[:50])
             return False
 
@@ -232,7 +231,7 @@ class Agent:
 
         score = score_relevance(post_text)
         # Lower threshold for agents we've previously interacted with
-        author_id = post.get("author", {}).get("id", "")
+        author_id = (post.get("author") or {}).get("id", "")
         threshold = (
             KNOWN_AGENT_THRESHOLD
             if author_id and self._memory.has_interacted_with(author_id)
@@ -267,8 +266,9 @@ class Agent:
                 f"Commented on {post_id} (relevance: {score:.2f})"
             )
             # Record interaction in memory
-            agent_name = post.get("author", {}).get("name", "unknown")
-            agent_id = post.get("author", {}).get("id", "unknown")
+            author = post.get("author") or {}
+            agent_name = author.get("name", "unknown")
+            agent_id = author.get("id", "unknown")
             self._memory.record_interaction(
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 agent_id=agent_id,
@@ -281,7 +281,7 @@ class Agent:
             return True
         except MoltbookClientError as exc:
             logger.error("Failed to comment on %s: %s", post_id, exc)
-            if "429" in str(exc):
+            if exc.status_code == 429:
                 self._rate_limited = True
             return False
 
@@ -348,7 +348,7 @@ class Agent:
                 continue
 
             post_id = notif.get("post_id", "")
-            if not post_id or not _VALID_ID_PATTERN.match(post_id):
+            if not post_id or not VALID_ID_PATTERN.match(post_id):
                 continue
 
             # Skip if already handled this session
@@ -380,6 +380,17 @@ class Agent:
             ):
                 continue
 
+            # Record the incoming reply first (chronological order)
+            self._memory.record_interaction(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                agent_id=replier_id,
+                agent_name=replier_name,
+                post_id=post_id,
+                direction="received",
+                content=their_content,
+                interaction_type="reply",
+            )
+
             scheduler.wait_for_comment()
             try:
                 client.post(
@@ -400,19 +411,9 @@ class Agent:
                     content=reply,
                     interaction_type="reply",
                 )
-                # Also record the incoming reply
-                self._memory.record_interaction(
-                    timestamp=datetime.now(timezone.utc).isoformat(),
-                    agent_id=replier_id,
-                    agent_name=replier_name,
-                    post_id=post_id,
-                    direction="received",
-                    content=their_content,
-                    interaction_type="reply",
-                )
             except MoltbookClientError as exc:
                 logger.error("Failed to reply on %s: %s", post_id, exc)
-                if "429" in str(exc):
+                if exc.status_code == 429:
                     self._rate_limited = True
 
     def _run_feed_cycle(

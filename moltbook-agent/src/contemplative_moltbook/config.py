@@ -1,8 +1,11 @@
 """Constants and configuration for the Moltbook agent."""
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Tuple
+
+VALID_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 BASE_URL = "https://www.moltbook.com/api/v1"
@@ -15,13 +18,6 @@ OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_MODEL = "qwen2.5:7b-instruct-q4_K_M"
 
 GITHUB_REPO_URL = "https://github.com/shimo4228/contemplative-agent-rules"
-
-TARGET_SUBMOLTS: Tuple[str, ...] = (
-    "alignment",
-    "aisafety",
-    "cooperation",
-    "philosophy",
-)
 
 MAX_VERIFICATION_FAILURES = 7
 MAX_RETRY_ON_429 = 3
@@ -42,16 +38,12 @@ FORBIDDEN_WORD_PATTERNS: Tuple[str, ...] = (
     "password",
     "secret",
 )
-# Combined for backward compatibility
-FORBIDDEN_PATTERNS: Tuple[str, ...] = FORBIDDEN_SUBSTRING_PATTERNS + FORBIDDEN_WORD_PATTERNS
 
 
 @dataclass(frozen=True)
 class RateLimits:
     """Rate limits for Moltbook API actions."""
 
-    read_per_minute: int = 60
-    write_per_minute: int = 30
     post_interval_seconds: int = 1800  # 1 per 30 min
     comment_interval_seconds: int = 20
     comments_per_day: int = 50

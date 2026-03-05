@@ -8,7 +8,7 @@ import os
 import stat
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,9 @@ class Interaction:
     agent_id: str
     agent_name: str
     post_id: str
-    direction: str  # "sent" | "received"
+    direction: Literal["sent", "received"]
     content_summary: str
-    interaction_type: str  # "comment" | "reply" | "post"
+    interaction_type: Literal["comment", "reply", "post"]
 
 
 def _truncate(text: str, max_length: int = SUMMARY_MAX_LENGTH) -> str:
@@ -98,9 +98,9 @@ class MemoryStore:
         agent_id: str,
         agent_name: str,
         post_id: str,
-        direction: str,
+        direction: Literal["sent", "received"],
         content: str,
-        interaction_type: str,
+        interaction_type: Literal["comment", "reply", "post"],
     ) -> Interaction:
         """Record an interaction and update known agents."""
         interaction = Interaction(

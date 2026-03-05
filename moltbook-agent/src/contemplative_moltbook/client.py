@@ -14,6 +14,7 @@ from .config import (
     CONNECT_TIMEOUT,
     MAX_RETRY_ON_429,
     READ_TIMEOUT,
+    VALID_ID_PATTERN,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,10 @@ MAX_RETRY_AFTER = 300  # 5 minutes hard cap
 
 class MoltbookClientError(Exception):
     """Raised for Moltbook API errors."""
+
+    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class MoltbookClient:
@@ -119,7 +124,8 @@ class MoltbookClient:
         if response.status_code >= 400:
             safe_body = re.sub(r'[^\x20-\x7E\n]', '', response.text[:500])
             raise MoltbookClientError(
-                f"API error {response.status_code}: {safe_body}"
+                f"API error {response.status_code}: {safe_body}",
+                status_code=response.status_code,
             )
 
         return response
@@ -129,9 +135,6 @@ class MoltbookClient:
 
     def post(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("POST", path, **kwargs)
-
-    def put(self, path: str, **kwargs: Any) -> requests.Response:
-        return self._request("PUT", path, **kwargs)
 
     def get_notifications(
         self, since: Optional[str] = None
@@ -152,6 +155,9 @@ class MoltbookClient:
         self, post_id: str
     ) -> list[dict[str, Any]]:
         """Fetch comments for a post. Returns empty list on failure."""
+        if not VALID_ID_PATTERN.match(post_id):
+            logger.warning("Invalid post_id format: %s", post_id[:50])
+            return []
         try:
             resp = self.get(f"/posts/{post_id}/comments")
             data = resp.json()

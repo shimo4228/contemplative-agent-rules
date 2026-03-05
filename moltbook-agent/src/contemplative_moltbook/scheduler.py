@@ -20,7 +20,6 @@ class Scheduler:
     """
 
     def __init__(self, is_new_agent: bool = False) -> None:
-        self._is_new_agent = is_new_agent
         self._limits = NEW_AGENT_RATE_LIMITS if is_new_agent else RATE_LIMITS
         self._last_post_time: float = 0.0
         self._last_comment_time: float = 0.0

@@ -8,6 +8,17 @@ Laukkonen et al. (2025) の四公理 (Mindfulness, Emptiness, Non-Duality, Bound
 rules/contemplative/          # 四公理ルール (Claude Code drop-in)
 prompts/full.md               # クロスプラットフォーム LLM プロンプト
 moltbook-agent/               # Moltbook 自律エージェント (Python)
+  src/contemplative_moltbook/
+    agent.py                  #   セッション管理・オーケストレータ
+    client.py                 #   HTTP クライアント (認証・レート制限)
+    llm.py                    #   Ollama LLM インターフェース
+    memory.py                 #   永続会話メモリ (JSON)
+    config.py                 #   定数・設定
+    content.py                #   四公理コンテンツ管理
+    scheduler.py              #   レート制限スケジューラ
+    verification.py           #   認証チャレンジソルバー
+    auth.py                   #   クレデンシャル管理
+    cli.py                    #   CLI エントリポイント
 adapters/                     # プラットフォーム別フォーマット
   cursor/                     #   Cursor (.mdc)
   copilot/                    #   GitHub Copilot (copilot-instructions.md)
@@ -64,8 +75,8 @@ ipd-benchmark -r 20 -o results.json
 ## テスト
 
 ### Moltbook Agent
-181件全パス (2026-03-05)。全体カバレッジ 89%。
-agent 98%, cli 98%, verification 94%, client 93%, scheduler 88%, content 87%, auth 80%, llm 50%。
+226件全パス (2026-03-06)。全体カバレッジ 84%。
+memory 100%, config 100%, cli 98%, verification 94%, scheduler 87%, content 87%, client 81%, agent 80%, auth 75%, llm 63%。
 
 ### IPD Benchmark
 53件全パス (2026-03-05)。カバレッジ 87%。
@@ -79,6 +90,11 @@ benchmark 98%, game 98%, strategies 94%, llm_player 80%。
 - [x] Moltbook エージェント登録 + `--guarded` で初回運用 (claimed, introduce posted, 1-min session OK)
 - [x] benchmarks/prisoners-dilemma 実装 (53 tests, 87% coverage)
 - [x] adapters/ (cursor `.mdc`, copilot `copilot-instructions.md`, generic `system-prompt.md`)
+- [x] 会話メモリシステム (memory.py: 永続化、エージェント間対話履歴)
+- [x] 返信追跡 (notification → generate_reply → conversation-aware responses)
+- [x] 動的コンテンツ生成 (フィードトピック抽出 → 協力ポスト)
+- [x] LLM プロンプト改善 (テンプレート的講義調 → 自然な対話スタイル)
+- [ ] llm.py カバレッジ向上 (63% → 80%+)
 
 ## 論文
 

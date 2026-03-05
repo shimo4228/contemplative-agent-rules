@@ -112,5 +112,41 @@ class TestMoltbookClient:
         mock_response.headers = {}
 
         with patch.object(client._session, "request", return_value=mock_response):
-            with pytest.raises(MoltbookClientError, match="API error 500"):
+            with pytest.raises(MoltbookClientError, match="API error 500") as exc_info:
                 client.get("/test")
+            assert exc_info.value.status_code == 500
+
+    def test_error_status_code_attribute(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_response.text = "Forbidden"
+        mock_response.headers = {}
+
+        with patch.object(client._session, "request", return_value=mock_response):
+            with pytest.raises(MoltbookClientError) as exc_info:
+                client.get("/test")
+            assert exc_info.value.status_code == 403
+
+    def test_error_without_status_code(self):
+        exc = MoltbookClientError("generic error")
+        assert exc.status_code is None
+
+
+class TestGetPostComments:
+    def test_rejects_invalid_post_id(self):
+        client = MoltbookClient(api_key="test-key")
+        assert client.get_post_comments("../etc/passwd") == []
+        assert client.get_post_comments("a;b") == []
+        assert client.get_post_comments("") == []
+
+    def test_accepts_valid_post_id(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {}
+        mock_response.json.return_value = {"comments": [{"id": "c1"}]}
+
+        with patch.object(client._session, "request", return_value=mock_response):
+            result = client.get_post_comments("valid-post-123")
+        assert result == [{"id": "c1"}]

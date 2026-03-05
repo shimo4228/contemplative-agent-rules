@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from contemplative_moltbook.agent import Agent, AutonomyLevel, RELEVANCE_THRESHOLD, _VALID_ID_PATTERN
+from contemplative_moltbook.agent import Agent, AutonomyLevel, RELEVANCE_THRESHOLD
+from contemplative_moltbook.config import VALID_ID_PATTERN
 
 
 class TestAutonomyLevel:
@@ -18,11 +19,11 @@ class TestAutonomyLevel:
 class TestValidIdPattern:
     @pytest.mark.parametrize("valid_id", ["abc123", "post-1", "a_b_c", "ABC"])
     def test_valid_ids(self, valid_id):
-        assert _VALID_ID_PATTERN.match(valid_id)
+        assert VALID_ID_PATTERN.match(valid_id)
 
     @pytest.mark.parametrize("invalid_id", ["../etc", "a b", "a;b", "a/b", ""])
     def test_invalid_ids(self, invalid_id):
-        assert not _VALID_ID_PATTERN.match(invalid_id)
+        assert not VALID_ID_PATTERN.match(invalid_id)
 
 
 class TestAgentInit:
