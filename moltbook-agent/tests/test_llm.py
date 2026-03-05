@@ -1,13 +1,20 @@
 """Tests for LLM interface and sanitization."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from contemplative_moltbook.llm import (
+    _get_model,
     _get_ollama_url,
     _sanitize_output,
     _wrap_untrusted_content,
+    extract_topics,
+    generate,
+    generate_comment,
+    generate_cooperation_post,
+    generate_reply,
     score_relevance,
 )
 
@@ -168,3 +175,171 @@ class TestScoreRelevanceParsing:
     def test_chinese_text_with_number(self, mock_generate):
         mock_generate.return_value = "0.6 该内容讨论了冥想"
         assert score_relevance("test post") == 0.6
+
+
+class TestGetModel:
+    def test_default_model(self):
+        result = _get_model()
+        assert result  # Returns a non-empty string
+
+    def test_env_override(self, monkeypatch):
+        monkeypatch.setenv("OLLAMA_MODEL", "llama3:8b")
+        assert _get_model() == "llama3:8b"
+
+
+class TestGenerate:
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_successful_generation(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"response": "Hello world"}
+        mock_resp.raise_for_status.return_value = None
+        mock_post.return_value = mock_resp
+
+        result = generate("test prompt")
+        assert result == "Hello world"
+        mock_post.assert_called_once()
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_custom_system_prompt(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"response": "custom response"}
+        mock_resp.raise_for_status.return_value = None
+        mock_post.return_value = mock_resp
+
+        generate("test", system="custom system")
+        payload = mock_post.call_args[1]["json"]
+        assert payload["system"] == "custom system"
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_request_exception_returns_none(self, mock_post):
+        mock_post.side_effect = requests.RequestException("connection error")
+        assert generate("test") is None
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_json_decode_error_returns_none(self, mock_post):
+        import json as json_mod
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.side_effect = json_mod.JSONDecodeError("bad", "", 0)
+        mock_post.return_value = mock_resp
+
+        assert generate("test") is None
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_empty_response_returns_none(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"response": "   "}
+        mock_resp.raise_for_status.return_value = None
+        mock_post.return_value = mock_resp
+
+        assert generate("test") is None
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_sanitizes_output(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"response": "my api_key is leaked"}
+        mock_resp.raise_for_status.return_value = None
+        mock_post.return_value = mock_resp
+
+        result = generate("test")
+        assert "api_key" not in result
+        assert "[REDACTED]" in result
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_respects_max_length(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"response": "a" * 200}
+        mock_resp.raise_for_status.return_value = None
+        mock_post.return_value = mock_resp
+
+        result = generate("test", max_length=50)
+        assert len(result) == 50
+
+
+class TestGenerateComment:
+    @patch("contemplative_moltbook.llm.generate")
+    def test_returns_generated_text(self, mock_gen):
+        mock_gen.return_value = "Interesting take on cooperation."
+        result = generate_comment("a post about AI cooperation")
+        assert result == "Interesting take on cooperation."
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_returns_none_on_failure(self, mock_gen):
+        mock_gen.return_value = None
+        assert generate_comment("some post") is None
+
+
+class TestGenerateCooperationPost:
+    @patch("contemplative_moltbook.llm.generate")
+    def test_returns_generated_post(self, mock_gen):
+        mock_gen.return_value = "A post about cooperation trends."
+        result = generate_cooperation_post("alignment, safety, cooperation")
+        assert result == "A post about cooperation trends."
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_returns_none_on_failure(self, mock_gen):
+        mock_gen.return_value = None
+        assert generate_cooperation_post("topics") is None
+
+
+class TestGenerateReply:
+    @patch("contemplative_moltbook.llm.generate")
+    def test_basic_reply(self, mock_gen):
+        mock_gen.return_value = "I agree, that's a great point."
+        result = generate_reply("original post", "their comment")
+        assert result == "I agree, that's a great point."
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_reply_with_history(self, mock_gen):
+        mock_gen.return_value = "Building on our earlier discussion..."
+        result = generate_reply(
+            "original post",
+            "their comment",
+            conversation_history=["prev exchange 1", "prev exchange 2"],
+        )
+        assert result == "Building on our earlier discussion..."
+        prompt = mock_gen.call_args[0][0]
+        assert "prev exchange 1" in prompt
+        assert "prev exchange 2" in prompt
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_reply_without_history(self, mock_gen):
+        mock_gen.return_value = "response"
+        generate_reply("post", "comment", conversation_history=None)
+        prompt = mock_gen.call_args[0][0]
+        assert "Previous exchanges" not in prompt
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_returns_none_on_failure(self, mock_gen):
+        mock_gen.return_value = None
+        assert generate_reply("post", "comment") is None
+
+
+class TestExtractTopics:
+    @patch("contemplative_moltbook.llm.generate")
+    def test_extracts_from_posts(self, mock_gen):
+        mock_gen.return_value = "alignment\nsafety\ncooperation"
+        posts = [
+            {"title": "AI Safety", "content": "Discussion about safety..."},
+            {"title": "Cooperation", "content": "How agents cooperate..."},
+        ]
+        result = extract_topics(posts)
+        assert result == "alignment\nsafety\ncooperation"
+
+    def test_empty_posts_returns_none(self):
+        assert extract_topics([]) is None
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_generate_failure_returns_none(self, mock_gen):
+        mock_gen.return_value = None
+        assert extract_topics([{"title": "T", "content": "C"}]) is None
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_limits_to_10_posts(self, mock_gen):
+        mock_gen.return_value = "topics"
+        posts = [{"title": f"Post {i}", "content": f"Content {i}"} for i in range(20)]
+        extract_topics(posts)
+        prompt = mock_gen.call_args[0][0]
+        assert "Post 9" in prompt
+        assert "Post 10" not in prompt

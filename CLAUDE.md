@@ -75,8 +75,8 @@ ipd-benchmark -r 20 -o results.json
 ## テスト
 
 ### Moltbook Agent
-226件全パス (2026-03-06)。全体カバレッジ 84%。
-memory 100%, config 100%, cli 98%, verification 94%, scheduler 87%, content 87%, client 81%, agent 80%, auth 75%, llm 63%。
+247件全パス (2026-03-06)。全体カバレッジ 88%。
+llm 100%, memory 100%, config 100%, cli 98%, verification 94%, scheduler 87%, content 87%, client 81%, agent 80%, auth 75%。
 
 ### IPD Benchmark
 53件全パス (2026-03-05)。カバレッジ 87%。
@@ -94,7 +94,7 @@ benchmark 98%, game 98%, strategies 94%, llm_player 80%。
 - [x] 返信追跡 (notification → generate_reply → conversation-aware responses)
 - [x] 動的コンテンツ生成 (フィードトピック抽出 → 協力ポスト)
 - [x] LLM プロンプト改善 (テンプレート的講義調 → 自然な対話スタイル)
-- [ ] llm.py カバレッジ向上 (63% → 80%+)
+- [x] llm.py カバレッジ向上 (63% → 100%)
 
 ## 論文
 
