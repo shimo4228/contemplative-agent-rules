@@ -268,9 +268,9 @@ class TestFetchFeed:
         resp_mock.json.return_value = {"posts": [{"id": "1"}, {"id": "2"}]}
         agent._client.get.return_value = resp_mock
 
-        posts = agent._fetch_feed("alignment")
+        posts = agent._fetch_feed()
         assert len(posts) == 2
-        agent._client.get.assert_called_once_with("/submolts/alignment/posts")
+        agent._client.get.assert_called_once_with("/feed")
 
     def test_fetch_error(self):
         from contemplative_moltbook.client import MoltbookClientError
@@ -279,7 +279,7 @@ class TestFetchFeed:
         agent._client = MagicMock()
         agent._client.get.side_effect = MoltbookClientError("fail")
 
-        posts = agent._fetch_feed("alignment")
+        posts = agent._fetch_feed()
         assert posts == []
 
 
@@ -412,7 +412,6 @@ class TestEngageWithPost:
 
 
 class TestRunFeedCycle:
-    @patch("contemplative_moltbook.agent.TARGET_SUBMOLTS", ("test_submolt",))
     def test_processes_posts(self):
         agent = Agent(autonomy=AutonomyLevel.AUTO)
         agent._client = MagicMock()

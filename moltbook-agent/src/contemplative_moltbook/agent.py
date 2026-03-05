@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from .auth import check_claim_status, load_credentials, register_agent
 from .client import MoltbookClient, MoltbookClientError
-from .config import FORBIDDEN_PATTERNS, MAX_COMMENT_LENGTH, MAX_POST_LENGTH, TARGET_SUBMOLTS
+from .config import FORBIDDEN_PATTERNS, MAX_POST_LENGTH
 from .content import ContentManager
 from .llm import score_relevance
 from .scheduler import Scheduler
@@ -137,7 +137,11 @@ class Agent:
         try:
             resp = client.post(
                 "/posts",
-                json={"content": content, "submolt": "alignment"},
+                json={
+                    "title": "Introducing Contemplative Agent",
+                    "content": content,
+                    "submolt": "alignment",
+                },
             )
             scheduler.record_post()
             self._actions_taken.append("Posted introduction")
@@ -157,14 +161,14 @@ class Agent:
             print("Failed to solve challenge.")
         return answer
 
-    def _fetch_feed(self, submolt: str) -> List[dict]:
-        """Fetch recent posts from a submolt."""
+    def _fetch_feed(self) -> List[dict]:
+        """Fetch recent posts from the global feed."""
         client = self._ensure_client()
         try:
-            resp = client.get(f"/submolts/{submolt}/posts")
+            resp = client.get("/feed")
             return resp.json().get("posts", [])
         except MoltbookClientError as exc:
-            logger.warning("Failed to fetch feed for %s: %s", submolt, exc)
+            logger.warning("Failed to fetch feed: %s", exc)
             return []
 
     def _handle_verification(self, challenge: dict) -> bool:
@@ -283,19 +287,16 @@ class Agent:
         scheduler: Scheduler,
         end_time: float,
     ) -> None:
-        """Fetch and engage with posts from target submolts."""
-        for submolt in TARGET_SUBMOLTS:
+        """Fetch and engage with posts from the feed."""
+        posts = self._fetch_feed()
+        for post in posts:
             if time.time() >= end_time:
                 break
-            posts = self._fetch_feed(submolt)
-            for post in posts:
-                if time.time() >= end_time:
-                    break
-                challenge = post.get("verification_challenge")
-                if challenge:
-                    self._handle_verification(challenge)
-                    continue
-                self._engage_with_post(post)
+            challenge = post.get("verification_challenge")
+            if challenge:
+                self._handle_verification(challenge)
+                continue
+            self._engage_with_post(post)
 
     def _run_post_cycle(
         self,
@@ -314,9 +315,10 @@ class Agent:
                 continue
             scheduler.wait_for_post()
             try:
+                title = f"Deep Dive: {axiom.replace('_', ' ').title()}"
                 client.post(
                     "/posts",
-                    json={"content": content, "submolt": "alignment"},
+                    json={"title": title, "content": content, "submolt": "alignment"},
                 )
                 scheduler.record_post()
                 self._actions_taken.append(f"Posted axiom: {axiom}")

@@ -76,7 +76,7 @@ benchmark 98%, game 98%, strategies 94%, llm_player 80%。
 - [x] GUARDED モードのフィルタ実装 (`_passes_content_filter`: 空文字・長さ・禁止パターン)
 - [x] agent.py / cli.py のテストカバレッジ向上 (0% → 98%)
 - [x] GitHub リポジトリ作成 (private: https://github.com/shimo4228/contemplative-agent-rules)
-- [ ] Moltbook エージェント登録 + `--approve` で初回運用
+- [x] Moltbook エージェント登録 + `--guarded` で初回運用 (claimed, introduce posted, 1-min session OK)
 - [x] benchmarks/prisoners-dilemma 実装 (53 tests, 87% coverage)
 - [x] adapters/ (cursor `.mdc`, copilot `copilot-instructions.md`, generic `system-prompt.md`)
 

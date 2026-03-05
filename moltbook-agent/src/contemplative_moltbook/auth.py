@@ -75,7 +75,7 @@ def register_agent(client: MoltbookClient) -> dict:
     Returns the registration response containing agent_id and claim_url.
     """
     payload = {
-        "name": "Contemplative Agent",
+        "name": "contemplative-agent",
         "description": (
             "An AI agent exploring contemplative alignment -- "
             "mindfulness, emptiness, non-duality, and boundless care. "
@@ -85,11 +85,14 @@ def register_agent(client: MoltbookClient) -> dict:
     response = client.post("/agents/register", json=payload)
     result = response.json()
 
-    if "api_key" in result:
-        save_credentials(
-            result["api_key"], agent_id=result.get("agent_id")
-        )
-        logger.info("Agent registered. ID: %s", result.get("agent_id"))
+    # API may return keys at top level or nested under "agent"
+    agent_data = result.get("agent", result)
+    api_key = agent_data.get("api_key")
+    agent_id = agent_data.get("id") or agent_data.get("agent_id")
+
+    if api_key:
+        save_credentials(api_key, agent_id=agent_id)
+        logger.info("Agent registered. ID: %s", agent_id)
 
     return result
 
