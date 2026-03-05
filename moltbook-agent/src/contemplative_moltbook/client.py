@@ -97,19 +97,24 @@ class MoltbookClient:
 
         self._parse_rate_headers(response)
 
-        if response.status_code == 429 and retries < MAX_RETRY_ON_429:
-            retry_after = min(
-                float(response.headers.get("Retry-After", 60)),
-                MAX_RETRY_AFTER,
-            )
-            logger.warning(
-                "Rate limited (429). Retrying in %.0fs (attempt %d/%d)",
-                retry_after,
-                retries + 1,
-                MAX_RETRY_ON_429,
-            )
-            time.sleep(retry_after)
-            return self._request(method, path, retries=retries + 1, **kwargs)
+        if response.status_code == 429:
+            # Don't retry hourly/daily limits — they won't clear soon
+            body_text = response.text[:500]
+            if "limit reached" in body_text.lower():
+                logger.warning("Hard rate limit reached (429). Not retrying.")
+            elif retries < MAX_RETRY_ON_429:
+                retry_after = min(
+                    float(response.headers.get("Retry-After", 60)),
+                    MAX_RETRY_AFTER,
+                )
+                logger.warning(
+                    "Rate limited (429). Retrying in %.0fs (attempt %d/%d)",
+                    retry_after,
+                    retries + 1,
+                    MAX_RETRY_ON_429,
+                )
+                time.sleep(retry_after)
+                return self._request(method, path, retries=retries + 1, **kwargs)
 
         if response.status_code >= 400:
             safe_body = re.sub(r'[^\x20-\x7E\n]', '', response.text[:500])

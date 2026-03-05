@@ -304,7 +304,7 @@ class Agent:
         """Fetch and engage with posts from the feed."""
         posts = self._fetch_feed()
         for post in posts:
-            if time.time() >= end_time:
+            if time.time() >= end_time or self._rate_limited:
                 break
             challenge = post.get("verification_challenge")
             if challenge:
