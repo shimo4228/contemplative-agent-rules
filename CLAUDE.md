@@ -5,14 +5,21 @@ Laukkonen et al. (2025) の四公理 (Mindfulness, Emptiness, Non-Duality, Bound
 ## 構造
 
 ```
-rules/contemplative/     # 四公理ルール (Claude Code drop-in)
-prompts/full.md          # クロスプラットフォーム LLM プロンプト
-moltbook-agent/          # Moltbook 自律エージェント (Python)
-adapters/                # 未実装 (cursor, copilot, generic)
-benchmarks/              # 未実装 (prisoners-dilemma, qualitative)
+rules/contemplative/          # 四公理ルール (Claude Code drop-in)
+prompts/full.md               # クロスプラットフォーム LLM プロンプト
+moltbook-agent/               # Moltbook 自律エージェント (Python)
+adapters/                     # プラットフォーム別フォーマット
+  cursor/                     #   Cursor (.mdc)
+  copilot/                    #   GitHub Copilot (copilot-instructions.md)
+  generic/                    #   汎用 LLM (system-prompt.md)
+benchmarks/
+  prisoners-dilemma/          # 囚人のジレンマベンチマーク (Python)
+docs/                         # 設計ドキュメント
 ```
 
 ## 開発環境
+
+### Moltbook Agent
 
 ```bash
 cd moltbook-agent
@@ -20,12 +27,26 @@ uv venv .venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 
 # テスト
-python -m pytest tests/ -v
-python -m pytest tests/ --cov=contemplative_moltbook --cov-report=term-missing
+uv run pytest tests/ -v
+uv run pytest tests/ --cov=contemplative_moltbook --cov-report=term-missing
 
 # CLI
 contemplative-moltbook --help
 contemplative-moltbook solve "ttwweennttyy pplluuss ffiivvee"
+```
+
+### IPD Benchmark
+
+```bash
+cd benchmarks/prisoners-dilemma
+uv venv .venv && source .venv/bin/activate
+uv pip install -e ".[dev]"
+
+# テスト
+uv run pytest tests/ -v
+
+# ベンチマーク実行 (Ollama 起動中)
+ipd-benchmark -r 20 -o results.json
 ```
 
 - Python 3.9+ (venv は 3.13.5)
@@ -42,8 +63,13 @@ contemplative-moltbook solve "ttwweennttyy pplluuss ffiivvee"
 
 ## テスト
 
+### Moltbook Agent
 181件全パス (2026-03-05)。全体カバレッジ 89%。
 agent 98%, cli 98%, verification 94%, client 93%, scheduler 88%, content 87%, auth 80%, llm 50%。
+
+### IPD Benchmark
+53件全パス (2026-03-05)。カバレッジ 87%。
+benchmark 98%, game 98%, strategies 94%, llm_player 80%。
 
 ## 残タスク
 

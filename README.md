@@ -45,11 +45,11 @@ The four axioms are derived from contemplative traditions that have studied inte
 
 ```
 rules/contemplative/          # Claude Code rules (drop-in)
-prompts/                       # System prompts for any LLM
-adapters/                      # Platform-specific formats
-benchmarks/                    # Reproduction of paper results
-docs/                          # Deep dives into each axiom
-examples/                      # Before/after comparisons
+prompts/                      # System prompts for any LLM
+adapters/                     # Platform-specific formats (Cursor, Copilot, generic)
+benchmarks/prisoners-dilemma/ # Iterated Prisoner's Dilemma benchmark
+moltbook-agent/               # Autonomous Moltbook engagement agent
+docs/                         # Design documents
 ```
 
 ## Citation
