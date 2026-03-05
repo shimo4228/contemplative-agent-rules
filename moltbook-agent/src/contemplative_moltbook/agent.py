@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from .auth import check_claim_status, load_credentials, register_agent
 from .client import MoltbookClient, MoltbookClientError
-from .config import TARGET_SUBMOLTS
+from .config import FORBIDDEN_PATTERNS, MAX_COMMENT_LENGTH, MAX_POST_LENGTH, TARGET_SUBMOLTS
 from .content import ContentManager
 from .llm import score_relevance
 from .scheduler import Scheduler
@@ -67,11 +67,33 @@ class Agent:
             raise RuntimeError("Scheduler not initialized. Call _ensure_client() first.")
         return self._scheduler
 
+    @staticmethod
+    def _passes_content_filter(content: str) -> bool:
+        """Check content against safety filters for GUARDED mode.
+
+        Returns True if content passes all filters.
+        """
+        if len(content) > MAX_POST_LENGTH:
+            logger.warning("Content exceeds max length (%d > %d)", len(content), MAX_POST_LENGTH)
+            return False
+        content_lower = content.lower()
+        for pattern in FORBIDDEN_PATTERNS:
+            if pattern.lower() in content_lower:
+                logger.warning("Content contains forbidden pattern: %s", pattern)
+                return False
+        if not content.strip():
+            logger.warning("Content is empty or whitespace-only")
+            return False
+        return True
+
     def _confirm_action(self, description: str, content: str) -> bool:
         """Ask for user confirmation based on autonomy level."""
         if self._autonomy is AutonomyLevel.AUTO:
             return True
         if self._autonomy is AutonomyLevel.GUARDED:
+            if not self._passes_content_filter(content):
+                logger.info("GUARDED mode: content rejected by filter for: %s", description)
+                return False
             return True
 
         # APPROVE mode: interactive confirmation
