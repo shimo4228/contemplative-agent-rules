@@ -66,8 +66,14 @@ print(s.comments_remaining_today)
     log "Comments remaining today: ${remaining}"
 
     if [ "$remaining" = "0" ]; then
-        log "Daily comment limit reached. Sleeping until next reset..."
-        # Sleep 1 hour and re-check
+        log "Daily comment limit reached. Sleeping 1 hour..."
+        sleep 3600
+        continue
+    fi
+
+    # Check if last session hit rate limit (429)
+    if grep -q "Rate limited by server" "$LOG_FILE" 2>/dev/null; then
+        log "Server rate limit hit. Sleeping 60 minutes before retry..."
         sleep 3600
         continue
     fi

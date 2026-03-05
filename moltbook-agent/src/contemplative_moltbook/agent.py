@@ -48,6 +48,7 @@ class Agent:
         self._scheduler: Optional[Scheduler] = None
         self._actions_taken: List[str] = []
         self._commented_posts: Set[str] = set()
+        self._rate_limited: bool = False
 
     def _ensure_client(self) -> MoltbookClient:
         if self._client is not None:
@@ -251,6 +252,8 @@ class Agent:
             return True
         except MoltbookClientError as exc:
             logger.error("Failed to comment on %s: %s", post_id, exc)
+            if "429" in str(exc):
+                self._rate_limited = True
             return False
 
     def run_session(self, duration_minutes: int = 60) -> List[str]:
@@ -270,6 +273,10 @@ class Agent:
         while time.time() < end_time:
             if self._verification.should_stop:
                 logger.error("Verification failure limit reached. Ending session.")
+                break
+
+            if self._rate_limited:
+                logger.info("Rate limited by server. Ending session early.")
                 break
 
             self._run_feed_cycle(client, scheduler, end_time)
