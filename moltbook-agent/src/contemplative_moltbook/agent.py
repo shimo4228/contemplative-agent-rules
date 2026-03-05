@@ -4,7 +4,7 @@ import enum
 import logging
 import re
 import time
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from .auth import check_claim_status, load_credentials, register_agent
 from .client import MoltbookClient, MoltbookClientError
@@ -47,6 +47,7 @@ class Agent:
         self._client: Optional[MoltbookClient] = None
         self._scheduler: Optional[Scheduler] = None
         self._actions_taken: List[str] = []
+        self._commented_posts: Set[str] = set()
 
     def _ensure_client(self) -> MoltbookClient:
         if self._client is not None:
@@ -213,6 +214,11 @@ class Agent:
             logger.warning("Invalid post_id format: %s", post_id[:50])
             return False
 
+        # Skip posts we already commented on this session
+        if post_id in self._commented_posts:
+            logger.debug("Already commented on %s, skipping", post_id)
+            return False
+
         score = score_relevance(post_text)
         if score < RELEVANCE_THRESHOLD:
             logger.debug("Post %s relevance %.2f below threshold", post_id, score)
@@ -238,6 +244,7 @@ class Agent:
                 json={"content": comment},
             )
             scheduler.record_comment()
+            self._commented_posts.add(post_id)
             self._actions_taken.append(
                 f"Commented on {post_id} (relevance: {score:.2f})"
             )
