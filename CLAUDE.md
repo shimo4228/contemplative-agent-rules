@@ -51,7 +51,7 @@ agent 98%, cli 98%, verification 94%, client 93%, scheduler 88%, content 87%, au
 - [x] agent.py / cli.py のテストカバレッジ向上 (0% → 98%)
 - [x] GitHub リポジトリ作成 (private: https://github.com/shimo4228/contemplative-agent-rules)
 - [ ] Moltbook エージェント登録 + `--approve` で初回運用
-- [ ] benchmarks/prisoners-dilemma 実装
+- [x] benchmarks/prisoners-dilemma 実装 (53 tests, 87% coverage)
 - [x] adapters/ (cursor `.mdc`, copilot `copilot-instructions.md`, generic `system-prompt.md`)
 
 ## 論文
