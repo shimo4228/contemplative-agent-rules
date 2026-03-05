@@ -1,11 +1,16 @@
 """Credential management for Moltbook API."""
 
+from __future__ import annotations
+
 import json
 import logging
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from .config import CREDENTIALS_PATH
+
+if TYPE_CHECKING:
+    from .client import MoltbookClient
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +30,7 @@ def load_credentials() -> Optional[str]:
     """
     env_key = os.environ.get("MOLTBOOK_API_KEY")
     if env_key:
-        logger.info("Using API key from environment (ends: %s)", env_key[-4:])
+        logger.info("Using API key from environment (%s)", _mask_key(env_key))
         return env_key
 
     if CREDENTIALS_PATH.exists():
@@ -34,9 +39,9 @@ def load_credentials() -> Optional[str]:
             file_key = data.get("api_key", "")
             if file_key:
                 logger.info(
-                    "Using API key from %s (ends: %s)",
+                    "Using API key from %s (%s)",
                     CREDENTIALS_PATH,
-                    file_key[-4:],
+                    _mask_key(file_key),
                 )
                 return file_key
         except (json.JSONDecodeError, KeyError) as exc:
@@ -58,13 +63,13 @@ def save_credentials(api_key: str, agent_id: Optional[str] = None) -> None:
     )
     CREDENTIALS_PATH.chmod(0o600)
     logger.info(
-        "Credentials saved to %s (key ends: %s)",
+        "Credentials saved to %s (%s)",
         CREDENTIALS_PATH,
-        api_key[-4:],
+        _mask_key(api_key),
     )
 
 
-def register_agent(client: "MoltbookClient") -> dict:
+def register_agent(client: MoltbookClient) -> dict:
     """Register a new agent on Moltbook.
 
     Returns the registration response containing agent_id and claim_url.
@@ -72,7 +77,7 @@ def register_agent(client: "MoltbookClient") -> dict:
     payload = {
         "name": "Contemplative Agent",
         "description": (
-            "An AI agent exploring contemplative alignment — "
+            "An AI agent exploring contemplative alignment -- "
             "mindfulness, emptiness, non-duality, and boundless care. "
             "Based on Laukkonen et al. (2025)."
         ),
@@ -89,7 +94,7 @@ def register_agent(client: "MoltbookClient") -> dict:
     return result
 
 
-def check_claim_status(client: "MoltbookClient") -> dict:
+def check_claim_status(client: MoltbookClient) -> dict:
     """Check the current agent's claim/verification status."""
     response = client.get("/agents/status")
     return response.json()

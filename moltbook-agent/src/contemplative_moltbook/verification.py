@@ -4,11 +4,16 @@ Moltbook uses obfuscated math CAPTCHAs to verify AI agents.
 Characters are repeated (e.g., "ttwweennttyy" -> "twenty").
 """
 
+from __future__ import annotations
+
 import logging
 import re
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from .config import MAX_VERIFICATION_FAILURES
+
+if TYPE_CHECKING:
+    from .client import MoltbookClient
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +200,7 @@ def solve_challenge(obfuscated_text: str) -> Optional[str]:
 
 
 def submit_verification(
-    client: "MoltbookClient",
+    client: MoltbookClient,
     challenge_id: str,
     answer: str,
 ) -> dict:

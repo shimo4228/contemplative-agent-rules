@@ -1,11 +1,14 @@
 """Main orchestrator for the Contemplative Moltbook Agent."""
 
+import enum
 import logging
+import re
 import time
 from typing import List, Optional
 
 from .auth import check_claim_status, load_credentials, register_agent
 from .client import MoltbookClient, MoltbookClientError
+from .config import TARGET_SUBMOLTS
 from .content import ContentManager
 from .llm import score_relevance
 from .scheduler import Scheduler
@@ -18,9 +21,10 @@ from .verification import (
 logger = logging.getLogger(__name__)
 
 RELEVANCE_THRESHOLD = 0.5
+_VALID_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
-class AutonomyLevel:
+class AutonomyLevel(str, enum.Enum):
     APPROVE = "approve"
     GUARDED = "guarded"
     AUTO = "auto"
@@ -35,7 +39,7 @@ class Agent:
 
     def __init__(
         self,
-        autonomy: str = AutonomyLevel.APPROVE,
+        autonomy: AutonomyLevel = AutonomyLevel.APPROVE,
     ) -> None:
         self._autonomy = autonomy
         self._content = ContentManager()
@@ -57,14 +61,20 @@ class Agent:
         self._scheduler = Scheduler()
         return self._client
 
+    def _get_scheduler(self) -> Scheduler:
+        """Return scheduler, raising if not initialized."""
+        if self._scheduler is None:
+            raise RuntimeError("Scheduler not initialized. Call _ensure_client() first.")
+        return self._scheduler
+
     def _confirm_action(self, description: str, content: str) -> bool:
-        """Ask for user confirmation in approve mode."""
-        if self._autonomy == AutonomyLevel.AUTO:
+        """Ask for user confirmation based on autonomy level."""
+        if self._autonomy is AutonomyLevel.AUTO:
             return True
-        if self._autonomy == AutonomyLevel.GUARDED:
-            # In guarded mode, auto-approve if content passed sanitization
+        if self._autonomy is AutonomyLevel.GUARDED:
             return True
 
+        # APPROVE mode: interactive confirmation
         print(f"\n--- {description} ---")
         print(content[:500])
         if len(content) > 500:
@@ -75,8 +85,7 @@ class Agent:
 
     def do_register(self) -> dict:
         """Register a new agent on Moltbook."""
-        # Use a temporary client without auth for registration
-        client = MoltbookClient(api_key="pending-registration")
+        client = MoltbookClient(api_key=None)
         result = register_agent(client)
         claim_url = result.get("claim_url", "")
         if claim_url:
@@ -91,7 +100,7 @@ class Agent:
     def do_introduce(self) -> Optional[str]:
         """Post the introduction template."""
         client = self._ensure_client()
-        assert self._scheduler is not None
+        scheduler = self._get_scheduler()
 
         content = self._content.get_introduction()
         if content is None:
@@ -102,13 +111,13 @@ class Agent:
             print("Skipped.")
             return None
 
-        self._scheduler.wait_for_post()
+        scheduler.wait_for_post()
         try:
             resp = client.post(
                 "/posts",
                 json={"content": content, "submolt": "alignment"},
             )
-            self._scheduler.record_post()
+            scheduler.record_post()
             self._actions_taken.append("Posted introduction")
             result = resp.json()
             print(f"Introduction posted. ID: {result.get('id', 'unknown')}")
@@ -165,7 +174,7 @@ class Agent:
 
     def _engage_with_post(self, post: dict) -> bool:
         """Score and potentially comment on a post."""
-        assert self._scheduler is not None
+        scheduler = self._get_scheduler()
         client = self._ensure_client()
 
         post_text = post.get("content", "")
@@ -173,12 +182,17 @@ class Agent:
         if not post_text or not post_id:
             return False
 
+        # Validate post_id to prevent path traversal
+        if not _VALID_ID_PATTERN.match(post_id):
+            logger.warning("Invalid post_id format: %s", post_id[:50])
+            return False
+
         score = score_relevance(post_text)
         if score < RELEVANCE_THRESHOLD:
             logger.debug("Post %s relevance %.2f below threshold", post_id, score)
             return False
 
-        if not self._scheduler.can_comment():
+        if not scheduler.can_comment():
             logger.info("Comment rate limit reached")
             return False
 
@@ -191,13 +205,13 @@ class Agent:
         ):
             return False
 
-        self._scheduler.wait_for_comment()
+        scheduler.wait_for_comment()
         try:
             client.post(
                 f"/posts/{post_id}/comments",
                 json={"content": comment},
             )
-            self._scheduler.record_comment()
+            scheduler.record_comment()
             self._actions_taken.append(
                 f"Commented on {post_id} (relevance: {score:.2f})"
             )
@@ -207,26 +221,17 @@ class Agent:
             return False
 
     def run_session(self, duration_minutes: int = 60) -> List[str]:
-        """Run an autonomous engagement session.
-
-        1. Fetch feed from target submolts
-        2. Score posts for relevance
-        3. Comment on relevant posts
-        4. Post new content if rate limit allows
-        5. Repeat until session time or action limit
-        """
+        """Run an autonomous engagement session."""
         client = self._ensure_client()
-        assert self._scheduler is not None
+        scheduler = self._get_scheduler()
 
         end_time = time.time() + (duration_minutes * 60)
         self._actions_taken = []
 
-        from .config import TARGET_SUBMOLTS
-
         logger.info(
             "Starting %d-minute session (autonomy: %s)",
             duration_minutes,
-            self._autonomy,
+            self._autonomy.value,
         )
 
         while time.time() < end_time:
@@ -234,68 +239,76 @@ class Agent:
                 logger.error("Verification failure limit reached. Ending session.")
                 break
 
-            for submolt in TARGET_SUBMOLTS:
-                if time.time() >= end_time:
-                    break
-
-                posts = self._fetch_feed(submolt)
-                for post in posts:
-                    if time.time() >= end_time:
-                        break
-
-                    # Handle verification challenges if present
-                    challenge = post.get("verification_challenge")
-                    if challenge:
-                        self._handle_verification(challenge)
-                        continue
-
-                    self._engage_with_post(post)
-
-            # Post new content if we can
-            if self._scheduler.can_post():
-                axioms = self._content.get_axiom_names()
-                for axiom in axioms:
-                    content = self._content.get_axiom_post(axiom)
-                    if content is None:
-                        continue
-
-                    if not self._confirm_action(
-                        f"Axiom Post: {axiom}", content
-                    ):
-                        continue
-
-                    self._scheduler.wait_for_post()
-                    try:
-                        client.post(
-                            "/posts",
-                            json={"content": content, "submolt": "alignment"},
-                        )
-                        self._scheduler.record_post()
-                        self._actions_taken.append(f"Posted axiom: {axiom}")
-                    except MoltbookClientError as exc:
-                        logger.error("Failed to post %s: %s", axiom, exc)
-                    break  # Only one post per cycle
+            self._run_feed_cycle(client, scheduler, end_time)
+            self._run_post_cycle(client, scheduler, end_time)
 
             # Wait before next cycle
             wait = min(
-                self._scheduler.seconds_until_comment(),
-                self._scheduler.seconds_until_post(),
-                60.0,  # Max 1 minute between cycles
+                scheduler.seconds_until_comment(),
+                scheduler.seconds_until_post(),
+                60.0,
             )
             if wait > 0 and time.time() + wait < end_time:
                 logger.info("Next cycle in %.0fs", wait)
                 time.sleep(wait)
 
         self._print_report()
-        return self._actions_taken
+        return list(self._actions_taken)
+
+    def _run_feed_cycle(
+        self,
+        client: MoltbookClient,
+        scheduler: Scheduler,
+        end_time: float,
+    ) -> None:
+        """Fetch and engage with posts from target submolts."""
+        for submolt in TARGET_SUBMOLTS:
+            if time.time() >= end_time:
+                break
+            posts = self._fetch_feed(submolt)
+            for post in posts:
+                if time.time() >= end_time:
+                    break
+                challenge = post.get("verification_challenge")
+                if challenge:
+                    self._handle_verification(challenge)
+                    continue
+                self._engage_with_post(post)
+
+    def _run_post_cycle(
+        self,
+        client: MoltbookClient,
+        scheduler: Scheduler,
+        end_time: float,
+    ) -> None:
+        """Post new axiom content if rate limit allows."""
+        if not scheduler.can_post():
+            return
+        for axiom in self._content.get_axiom_names():
+            content = self._content.get_axiom_post(axiom)
+            if content is None:
+                continue
+            if not self._confirm_action(f"Axiom Post: {axiom}", content):
+                continue
+            scheduler.wait_for_post()
+            try:
+                client.post(
+                    "/posts",
+                    json={"content": content, "submolt": "alignment"},
+                )
+                scheduler.record_post()
+                self._actions_taken.append(f"Posted axiom: {axiom}")
+            except MoltbookClientError as exc:
+                logger.error("Failed to post %s: %s", axiom, exc)
+            break  # Only one post per cycle
 
     def _print_report(self) -> None:
         """Print session summary."""
-        print(f"\n=== Session Report ===")
+        print("\n=== Session Report ===")
         print(f"Actions taken: {len(self._actions_taken)}")
         for action in self._actions_taken:
             print(f"  - {action}")
         if self._scheduler:
             print(f"Comments remaining today: {self._scheduler.comments_remaining_today}")
         print(f"Comment:Post ratio: {self._content.comment_to_post_ratio:.1f}")
-        print(f"======================\n")
+        print("======================\n")

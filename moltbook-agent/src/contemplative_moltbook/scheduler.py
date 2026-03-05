@@ -51,6 +51,7 @@ class Scheduler:
         RATE_STATE_PATH.write_text(
             json.dumps(data, indent=2) + "\n", encoding="utf-8"
         )
+        RATE_STATE_PATH.chmod(0o600)
 
     def _reset_daily_if_needed(self) -> None:
         now = time.time()
