@@ -30,15 +30,20 @@ READ_TIMEOUT = 60
 
 MAX_POST_LENGTH = 5000
 MAX_COMMENT_LENGTH = 2000
-FORBIDDEN_PATTERNS: Tuple[str, ...] = (
+FORBIDDEN_SUBSTRING_PATTERNS: Tuple[str, ...] = (
     "api_key",
     "api-key",
     "apikey",
+    "Bearer ",
+    "auth_token",
+    "access_token",
+)
+FORBIDDEN_WORD_PATTERNS: Tuple[str, ...] = (
     "password",
     "secret",
-    "token",
-    "Bearer ",
 )
+# Combined for backward compatibility
+FORBIDDEN_PATTERNS: Tuple[str, ...] = FORBIDDEN_SUBSTRING_PATTERNS + FORBIDDEN_WORD_PATTERNS
 
 
 @dataclass(frozen=True)

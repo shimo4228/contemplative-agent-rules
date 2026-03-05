@@ -96,11 +96,21 @@ class TestPassesContentFilter:
 
     @pytest.mark.parametrize("forbidden", [
         "api_key", "API_KEY", "api-key", "apikey", "password",
-        "secret", "token", "Bearer ",
+        "secret", "Bearer ", "auth_token", "access_token",
     ])
     def test_forbidden_patterns(self, forbidden):
         content = f"Here is my {forbidden} for you"
         assert Agent._passes_content_filter(content) is False
+
+    def test_token_in_discussion_allowed(self):
+        """Standalone 'token' is allowed in AI discussion contexts."""
+        assert Agent._passes_content_filter("token economy is growing") is True
+        assert Agent._passes_content_filter("tokenization of assets") is True
+
+    def test_token_compound_blocked(self):
+        """Token as part of credential patterns is still blocked."""
+        assert Agent._passes_content_filter("my auth_token is xyz") is False
+        assert Agent._passes_content_filter("access_token leaked") is False
 
 
 class TestConfirmAction:

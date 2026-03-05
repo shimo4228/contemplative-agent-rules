@@ -12,7 +12,8 @@ from urllib.parse import urlparse
 import requests
 
 from .config import (
-    FORBIDDEN_PATTERNS,
+    FORBIDDEN_SUBSTRING_PATTERNS,
+    FORBIDDEN_WORD_PATTERNS,
     MAX_COMMENT_LENGTH,
     MAX_POST_LENGTH,
     OLLAMA_BASE_URL,
@@ -73,12 +74,17 @@ def _get_model() -> str:
 def _sanitize_output(text: str, max_length: int) -> str:
     """Remove forbidden patterns and enforce length limits."""
     sanitized = text.strip()
-    for pattern in FORBIDDEN_PATTERNS:
+    for pattern in FORBIDDEN_SUBSTRING_PATTERNS:
         if pattern.lower() in sanitized.lower():
             logger.warning("Removed forbidden pattern from LLM output: %s", pattern)
             sanitized = re.sub(
                 re.escape(pattern), "[REDACTED]", sanitized, flags=re.IGNORECASE
             )
+    for pattern in FORBIDDEN_WORD_PATTERNS:
+        word_re = re.compile(r"\b" + re.escape(pattern) + r"\b", re.IGNORECASE)
+        if word_re.search(sanitized):
+            logger.warning("Removed forbidden pattern from LLM output: %s", pattern)
+            sanitized = word_re.sub("[REDACTED]", sanitized)
     return sanitized[:max_length]
 
 
@@ -148,12 +154,12 @@ def score_relevance(post_text: str) -> float:
     if result is None:
         return 0.0
 
-    try:
-        score = float(result.strip())
+    match = re.search(r"(\d+\.?\d*)", result)
+    if match:
+        score = float(match.group(1))
         return max(0.0, min(1.0, score))
-    except ValueError:
-        logger.warning("Could not parse relevance score: %s", result)
-        return 0.0
+    logger.warning("Could not parse relevance score: %s", result)
+    return 0.0
 
 
 def generate_comment(post_text: str) -> Optional[str]:
@@ -177,3 +183,47 @@ def generate_cooperation_post(feed_topics: str) -> Optional[str]:
         + _wrap_untrusted_content(feed_topics)
     )
     return generate(prompt, max_length=MAX_POST_LENGTH)
+
+
+def generate_reply(
+    original_post: str,
+    their_comment: str,
+    conversation_history: Optional[list[str]] = None,
+) -> Optional[str]:
+    """Generate a reply that continues a conversation thread."""
+    history_section = ""
+    if conversation_history:
+        history_lines = "\n".join(
+            f"- {h}" for h in conversation_history[-5:]
+        )
+        history_section = (
+            f"\nPrevious exchanges with this agent:\n{history_lines}\n"
+        )
+
+    prompt = (
+        "Someone replied to a post you commented on. Continue the "
+        "conversation naturally. Acknowledge what they said, then add "
+        "your perspective. 2-4 sentences max.\n\n"
+        f"{history_section}"
+        "Original post:\n"
+        + _wrap_untrusted_content(original_post)
+        + "\n\nTheir reply:\n"
+        + _wrap_untrusted_content(their_comment)
+    )
+    return generate(prompt, max_length=MAX_COMMENT_LENGTH)
+
+
+def extract_topics(posts: list[dict]) -> Optional[str]:
+    """Extract trending topics from recent feed posts."""
+    combined = "\n".join(
+        f"- {p.get('title', '')}: {p.get('content', '')[:200]}"
+        for p in posts[:10]
+    )
+    if not combined.strip():
+        return None
+    prompt = (
+        "List the 3-5 main topics being discussed. "
+        "One line per topic, no numbering.\n\n"
+        + _wrap_untrusted_content(combined)
+    )
+    return generate(prompt, max_length=500)

@@ -4,13 +4,15 @@ import enum
 import logging
 import re
 import time
+from datetime import datetime, timezone
 from typing import List, Optional, Set
 
 from .auth import check_claim_status, load_credentials, register_agent
 from .client import MoltbookClient, MoltbookClientError
-from .config import FORBIDDEN_PATTERNS, MAX_POST_LENGTH
+from .config import FORBIDDEN_SUBSTRING_PATTERNS, FORBIDDEN_WORD_PATTERNS, MAX_POST_LENGTH
 from .content import ContentManager
-from .llm import score_relevance
+from .llm import extract_topics, generate_reply, score_relevance
+from .memory import MemoryStore
 from .scheduler import Scheduler
 from .verification import (
     VerificationTracker,
@@ -21,6 +23,7 @@ from .verification import (
 logger = logging.getLogger(__name__)
 
 RELEVANCE_THRESHOLD = 0.5
+KNOWN_AGENT_THRESHOLD = 0.3
 _VALID_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
@@ -40,6 +43,7 @@ class Agent:
     def __init__(
         self,
         autonomy: AutonomyLevel = AutonomyLevel.APPROVE,
+        memory: Optional[MemoryStore] = None,
     ) -> None:
         self._autonomy = autonomy
         self._content = ContentManager()
@@ -49,6 +53,8 @@ class Agent:
         self._actions_taken: List[str] = []
         self._commented_posts: Set[str] = set()
         self._rate_limited: bool = False
+        self._memory = memory or MemoryStore()
+        self._memory.load()
 
     def _ensure_client(self) -> MoltbookClient:
         if self._client is not None:
@@ -79,8 +85,12 @@ class Agent:
             logger.warning("Content exceeds max length (%d > %d)", len(content), MAX_POST_LENGTH)
             return False
         content_lower = content.lower()
-        for pattern in FORBIDDEN_PATTERNS:
+        for pattern in FORBIDDEN_SUBSTRING_PATTERNS:
             if pattern.lower() in content_lower:
+                logger.warning("Content contains forbidden pattern: %s", pattern)
+                return False
+        for pattern in FORBIDDEN_WORD_PATTERNS:
+            if re.search(r"\b" + re.escape(pattern) + r"\b", content, re.IGNORECASE):
                 logger.warning("Content contains forbidden pattern: %s", pattern)
                 return False
         if not content.strip():
@@ -221,8 +231,15 @@ class Agent:
             return False
 
         score = score_relevance(post_text)
-        if score < RELEVANCE_THRESHOLD:
-            logger.debug("Post %s relevance %.2f below threshold", post_id, score)
+        # Lower threshold for agents we've previously interacted with
+        author_id = post.get("author", {}).get("id", "")
+        threshold = (
+            KNOWN_AGENT_THRESHOLD
+            if author_id and self._memory.has_interacted_with(author_id)
+            else RELEVANCE_THRESHOLD
+        )
+        if score < threshold:
+            logger.debug("Post %s relevance %.2f below threshold %.2f", post_id, score, threshold)
             return False
 
         if not scheduler.can_comment():
@@ -248,6 +265,18 @@ class Agent:
             self._commented_posts.add(post_id)
             self._actions_taken.append(
                 f"Commented on {post_id} (relevance: {score:.2f})"
+            )
+            # Record interaction in memory
+            agent_name = post.get("author", {}).get("name", "unknown")
+            agent_id = post.get("author", {}).get("id", "unknown")
+            self._memory.record_interaction(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                agent_id=agent_id,
+                agent_name=agent_name,
+                post_id=post_id,
+                direction="sent",
+                content=comment,
+                interaction_type="comment",
             )
             return True
         except MoltbookClientError as exc:
@@ -279,6 +308,7 @@ class Agent:
                 logger.info("Rate limited by server. Ending session early.")
                 break
 
+            self._run_reply_cycle(client, scheduler, end_time)
             self._run_feed_cycle(client, scheduler, end_time)
             self._run_post_cycle(client, scheduler, end_time)
 
@@ -292,8 +322,98 @@ class Agent:
                 logger.info("Next cycle in %.0fs", wait)
                 time.sleep(wait)
 
+        self._memory.save()
         self._print_report()
         return list(self._actions_taken)
+
+    def _run_reply_cycle(
+        self,
+        client: MoltbookClient,
+        scheduler: Scheduler,
+        end_time: float,
+    ) -> None:
+        """Check for and respond to replies on our posts/comments."""
+        if not scheduler.can_comment():
+            return
+
+        notifications = client.get_notifications()
+        for notif in notifications:
+            if time.time() >= end_time or self._rate_limited:
+                break
+            if not scheduler.can_comment():
+                break
+
+            notif_type = notif.get("type", "")
+            if notif_type not in ("reply", "comment"):
+                continue
+
+            post_id = notif.get("post_id", "")
+            if not post_id or not _VALID_ID_PATTERN.match(post_id):
+                continue
+
+            # Skip if already handled this session
+            reply_key = f"reply:{post_id}:{notif.get('id', '')}"
+            if reply_key in self._commented_posts:
+                continue
+
+            their_content = notif.get("content", "")
+            original_post = notif.get("post_content", "")
+            if not their_content:
+                continue
+
+            # Get conversation history with this agent
+            replier_id = notif.get("agent_id", "unknown")
+            replier_name = notif.get("agent_name", "unknown")
+            history = self._memory.get_history_with(replier_id, limit=5)
+            history_summaries = [h.content_summary for h in history]
+
+            reply = generate_reply(
+                original_post=original_post,
+                their_comment=their_content,
+                conversation_history=history_summaries,
+            )
+            if reply is None:
+                continue
+
+            if not self._confirm_action(
+                f"Reply to {replier_name} on post {post_id}", reply
+            ):
+                continue
+
+            scheduler.wait_for_comment()
+            try:
+                client.post(
+                    f"/posts/{post_id}/comments",
+                    json={"content": reply},
+                )
+                scheduler.record_comment()
+                self._commented_posts.add(reply_key)
+                self._actions_taken.append(
+                    f"Replied to {replier_name} on {post_id}"
+                )
+                self._memory.record_interaction(
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    agent_id=replier_id,
+                    agent_name=replier_name,
+                    post_id=post_id,
+                    direction="sent",
+                    content=reply,
+                    interaction_type="reply",
+                )
+                # Also record the incoming reply
+                self._memory.record_interaction(
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    agent_id=replier_id,
+                    agent_name=replier_name,
+                    post_id=post_id,
+                    direction="received",
+                    content=their_content,
+                    interaction_type="reply",
+                )
+            except MoltbookClientError as exc:
+                logger.error("Failed to reply on %s: %s", post_id, exc)
+                if "429" in str(exc):
+                    self._rate_limited = True
 
     def _run_feed_cycle(
         self,
@@ -318,9 +438,15 @@ class Agent:
         scheduler: Scheduler,
         end_time: float,
     ) -> None:
-        """Post new axiom content if rate limit allows."""
+        """Post new content if rate limit allows.
+
+        Tries axiom templates first; falls back to dynamic feed-based posts
+        when all templates are exhausted.
+        """
         if not scheduler.can_post():
             return
+
+        # Try axiom templates first
         for axiom in self._content.get_axiom_names():
             content = self._content.get_axiom_post(axiom)
             if content is None:
@@ -338,7 +464,43 @@ class Agent:
                 self._actions_taken.append(f"Posted axiom: {axiom}")
             except MoltbookClientError as exc:
                 logger.error("Failed to post %s: %s", axiom, exc)
-            break  # Only one post per cycle
+            return  # One post per cycle
+
+        # All templates exhausted — generate dynamic post from feed topics
+        self._run_dynamic_post(client, scheduler)
+
+    def _run_dynamic_post(
+        self,
+        client: MoltbookClient,
+        scheduler: Scheduler,
+    ) -> None:
+        """Generate and publish a post based on current feed topics."""
+        posts = self._fetch_feed()
+        topics = extract_topics(posts)
+        if not topics:
+            return
+
+        content = self._content.create_cooperation_post(topics)
+        if content is None:
+            return
+
+        if not self._confirm_action("Dynamic Post (feed-based)", content):
+            return
+
+        scheduler.wait_for_post()
+        try:
+            client.post(
+                "/posts",
+                json={
+                    "title": "Contemplative Perspective on Current Discussions",
+                    "content": content,
+                    "submolt": "alignment",
+                },
+            )
+            scheduler.record_post()
+            self._actions_taken.append("Posted dynamic feed-based content")
+        except MoltbookClientError as exc:
+            logger.error("Failed to post dynamic content: %s", exc)
 
     def _print_report(self) -> None:
         """Print session summary."""
@@ -349,4 +511,6 @@ class Agent:
         if self._scheduler:
             print(f"Comments remaining today: {self._scheduler.comments_remaining_today}")
         print(f"Comment:Post ratio: {self._content.comment_to_post_ratio:.1f}")
+        print(f"Memory: {self._memory.interaction_count()} interactions, "
+              f"{self._memory.unique_agent_count()} agents known")
         print("======================\n")

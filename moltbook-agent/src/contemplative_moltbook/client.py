@@ -132,3 +132,30 @@ class MoltbookClient:
 
     def put(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("PUT", path, **kwargs)
+
+    def get_notifications(
+        self, since: Optional[str] = None
+    ) -> list[dict[str, Any]]:
+        """Fetch notifications. Returns empty list on failure."""
+        params: dict[str, str] = {}
+        if since:
+            params["since"] = since
+        try:
+            resp = self.get("/notifications", params=params)
+            data = resp.json()
+            return data.get("notifications", [])
+        except (MoltbookClientError, ValueError) as exc:
+            logger.warning("Failed to fetch notifications: %s", exc)
+            return []
+
+    def get_post_comments(
+        self, post_id: str
+    ) -> list[dict[str, Any]]:
+        """Fetch comments for a post. Returns empty list on failure."""
+        try:
+            resp = self.get(f"/posts/{post_id}/comments")
+            data = resp.json()
+            return data.get("comments", [])
+        except (MoltbookClientError, ValueError) as exc:
+            logger.warning("Failed to fetch comments for %s: %s", post_id, exc)
+            return []
