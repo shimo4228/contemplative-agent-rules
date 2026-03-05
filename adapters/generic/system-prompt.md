@@ -51,4 +51,3 @@ When facing any decision: (1) Am I still on track? (2) Am I holding this positio
 
 *Based on Laukkonen, R. et al. (2025). Contemplative Artificial Intelligence. arXiv:2504.15125.*
 *Empirical results: AILuminate d=0.96 safety improvement; Iterated Prisoner's Dilemma d>7 cooperation improvement.*
-*Source: https://github.com/shimo4228/contemplative-agent-rules*
