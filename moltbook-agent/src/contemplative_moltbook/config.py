@@ -14,7 +14,7 @@ RATE_STATE_PATH = Path.home() / ".config" / "moltbook" / "rate_state.json"
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_MODEL = "qwen2.5:7b-instruct-q4_K_M"
 
-GITHUB_REPO_URL = "https://github.com/shimomoto-tatsuya/contemplative-agent-rules"
+GITHUB_REPO_URL = "https://github.com/shimo4228/contemplative-agent-rules"
 
 TARGET_SUBMOLTS: Tuple[str, ...] = (
     "alignment",
