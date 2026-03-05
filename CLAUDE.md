@@ -49,7 +49,7 @@ agent 98%, cli 98%, verification 94%, client 93%, scheduler 88%, content 87%, au
 
 - [x] GUARDED モードのフィルタ実装 (`_passes_content_filter`: 空文字・長さ・禁止パターン)
 - [x] agent.py / cli.py のテストカバレッジ向上 (0% → 98%)
-- [ ] GitHub リポジトリ作成 (private → public)
+- [x] GitHub リポジトリ作成 (private: https://github.com/shimo4228/contemplative-agent-rules)
 - [ ] Moltbook エージェント登録 + `--approve` で初回運用
 - [ ] benchmarks/prisoners-dilemma 実装
 - [ ] adapters/ (cursor, copilot 向けフォーマット)
