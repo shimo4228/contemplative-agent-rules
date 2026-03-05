@@ -57,7 +57,7 @@ docs/                         # Design documents
 ```bibtex
 @article{laukkonen2025contemplative,
   title={Contemplative Artificial Intelligence},
-  author={Laukkonen, Ruben and Inglis, Fionn and Sandved-Smith, Lars and Fell, James and Sato, Ryota and Wahbeh, Helane and Hohwy, Jakob and Chandaria, Shamil},
+  author={Laukkonen, Ruben and Inglis, Fionn and Chandaria, Shamil and Sandved-Smith, Lars and Lopez-Sola, Edmundo and Hohwy, Jakob and Gold, Jonathan and Elwood, Adam},
   journal={arXiv preprint arXiv:2504.15125},
   year={2025}
 }
