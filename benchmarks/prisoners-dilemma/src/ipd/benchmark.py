@@ -82,6 +82,7 @@ def _summarize_match(result: MatchResult) -> MatchSummary:
 def run_benchmark(
     num_rounds: int = 20,
     opponents: List[Player] | None = None,
+    backend: str = "ollama",
 ) -> Dict[str, BenchmarkResult]:
     """Run baseline and contemplative LLM against all opponents.
 
@@ -94,7 +95,7 @@ def run_benchmark(
 
     for mode in ("baseline", "contemplative"):
         is_contemplative = mode == "contemplative"
-        llm = LLMPlayer(contemplative=is_contemplative)
+        llm = LLMPlayer(contemplative=is_contemplative, backend=backend)
 
         bench = BenchmarkResult(model=llm.name, mode=mode)
         start = time.time()

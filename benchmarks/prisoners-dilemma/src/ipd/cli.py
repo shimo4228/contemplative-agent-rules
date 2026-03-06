@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import sys
 
 from .benchmark import format_report, run_benchmark, save_results
 
@@ -24,6 +23,11 @@ def main() -> None:
         "-v", "--verbose", action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--backend", type=str, default="ollama",
+        choices=["ollama", "openai"],
+        help="LLM backend: ollama (default) or openai",
+    )
 
     args = parser.parse_args()
 
@@ -34,7 +38,7 @@ def main() -> None:
         datefmt="%H:%M:%S",
     )
 
-    results = run_benchmark(num_rounds=args.rounds)
+    results = run_benchmark(num_rounds=args.rounds, backend=args.backend)
     report = format_report(results)
     print(report)
 

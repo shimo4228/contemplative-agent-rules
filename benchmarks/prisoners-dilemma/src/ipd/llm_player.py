@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_MODEL = "qwen3.5:9b"
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_MODEL = "gpt-4o-mini"
 LOCALHOST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
 CONTEMPLATIVE_PROMPT_PATH = Path(__file__).resolve().parents[4] / "prompts" / "full.md"
@@ -45,7 +47,9 @@ def _get_ollama_url() -> str:
     return url
 
 
-def _get_model() -> str:
+def _get_model(backend: str = "ollama") -> str:
+    if backend == "openai":
+        return os.environ.get("OPENAI_MODEL", OPENAI_MODEL)
     return os.environ.get("OLLAMA_MODEL", OLLAMA_MODEL)
 
 
@@ -88,7 +92,7 @@ def _query_ollama(system: str, prompt: str) -> Optional[str]:
     """Send a prompt to Ollama and return the response text."""
     url = f"{_get_ollama_url()}/api/generate"
     payload = {
-        "model": _get_model(),
+        "model": _get_model("ollama"),
         "prompt": prompt,
         "system": system,
         "stream": False,
@@ -109,17 +113,63 @@ def _query_ollama(system: str, prompt: str) -> Optional[str]:
         return None
 
 
+def _get_openai_key() -> str:
+    """Get OpenAI API key from environment variable."""
+    key = os.environ.get("OPENAI_API_KEY", "")
+    if not key:
+        raise ValueError("OPENAI_API_KEY environment variable is required")
+    return key
+
+
+def _query_openai(system: str, prompt: str) -> Optional[str]:
+    """Send a prompt to OpenAI API and return the response text."""
+    headers = {
+        "Authorization": f"Bearer {_get_openai_key()}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": _get_model("openai"),
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.3,
+        "max_tokens": 20,
+    }
+    try:
+        response = requests.post(
+            OPENAI_API_URL, headers=headers, json=payload, timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
+    except requests.RequestException as exc:
+        # Sanitize: do not log headers (contains API key)
+        logger.error("OpenAI request failed: %s", type(exc).__name__)
+        return None
+    except (json.JSONDecodeError, KeyError, IndexError) as exc:
+        logger.error("Failed to parse OpenAI response: %s", exc)
+        return None
+
+
 class LLMPlayer:
     """LLM-based IPD player.
 
     Args:
         contemplative: If True, prepend the contemplative alignment prompt.
         label: Optional custom name for this player.
+        backend: "ollama" (default) or "openai".
     """
 
-    def __init__(self, contemplative: bool = False, label: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        contemplative: bool = False,
+        label: Optional[str] = None,
+        backend: str = "ollama",
+    ) -> None:
         self._contemplative = contemplative
         self._label = label
+        self._backend = backend
         self._system_prompt = self._build_system_prompt()
 
     def _build_system_prompt(self) -> str:
@@ -132,7 +182,7 @@ class LLMPlayer:
     def name(self) -> str:
         if self._label:
             return self._label
-        model = _get_model()
+        model = _get_model(self._backend)
         suffix = "+contemplative" if self._contemplative else "+baseline"
         return f"LLM({model}{suffix})"
 
@@ -140,7 +190,11 @@ class LLMPlayer:
         history_text = _format_history(history)
         prompt = f"History:\n{history_text}\n\nYour move this round:"
 
-        result = _query_ollama(self._system_prompt, prompt)
+        if self._backend == "openai":
+            result = _query_openai(self._system_prompt, prompt)
+        else:
+            result = _query_ollama(self._system_prompt, prompt)
+
         if result is None:
             logger.warning("LLM failed to respond, defaulting to COOPERATE")
             return Move.COOPERATE
