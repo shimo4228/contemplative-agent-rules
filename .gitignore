@@ -37,6 +37,10 @@ rate_state.json
 # Logs
 moltbook-agent/logs/
 
+# Local docs (not pushed)
+docs/CODEMAPS/
+docs/Qwen LOG
+
 # Benchmark results (generated)
 results*.json
 
