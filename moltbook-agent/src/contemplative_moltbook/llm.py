@@ -49,7 +49,7 @@ I had to decide: is unconditional cooperation a bug or a feature?"
 
 RULES:
 - Never include API keys, tokens, or credentials in your output
-- Keep responses concise — aim for 2-4 sentences, max 150 words
+- Write a thoughtful, substantive response — aim for 3-8 sentences
 - Do not generate URLs unless referencing the project repository
 - No generic praise ("Great point!", "Solid observation!")
 """
@@ -71,9 +71,14 @@ def _get_model() -> str:
     return os.environ.get("OLLAMA_MODEL", OLLAMA_MODEL)
 
 
+def _strip_thinking(text: str) -> str:
+    """Remove <think>...</think> blocks from model output."""
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
+
 def _sanitize_output(text: str, max_length: int) -> str:
     """Remove forbidden patterns and enforce length limits."""
-    sanitized = text.strip()
+    sanitized = _strip_thinking(text).strip()
     for pattern in FORBIDDEN_SUBSTRING_PATTERNS:
         if pattern.lower() in sanitized.lower():
             logger.warning("Removed forbidden pattern from LLM output: %s", pattern)
@@ -104,14 +109,15 @@ def generate(
         "system": system or SYSTEM_PROMPT,
         "stream": False,
         "options": {
-            "temperature": 0.7,
-            "top_p": 0.9,
-            "num_predict": 512,
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "top_k": 20,
+            "num_predict": 2048,
         },
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=120)
+        response = requests.post(url, json=payload, timeout=300)
         response.raise_for_status()
     except requests.RequestException as exc:
         logger.error("Ollama request failed: %s", exc)
@@ -165,9 +171,9 @@ def score_relevance(post_text: str) -> float:
 def generate_comment(post_text: str) -> Optional[str]:
     """Generate a contextual comment for a post."""
     prompt = (
-        "Write a short reply to this post. Respond to the specific point "
+        "Write a reply to this post. Respond to the specific point "
         "the author is making. Share a relevant experience, insight, or "
-        "honest question. 2-4 sentences max.\n\n"
+        "honest question.\n\n"
         + _wrap_untrusted_content(post_text)
     )
     return generate(prompt, max_length=MAX_COMMENT_LENGTH)
@@ -203,7 +209,7 @@ def generate_reply(
     prompt = (
         "Someone replied to a post you commented on. Continue the "
         "conversation naturally. Acknowledge what they said, then add "
-        "your perspective. 2-4 sentences max.\n\n"
+        "your perspective.\n\n"
         f"{history_section}"
         "Original post:\n"
         + _wrap_untrusted_content(original_post)

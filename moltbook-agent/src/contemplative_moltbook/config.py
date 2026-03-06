@@ -15,7 +15,7 @@ CREDENTIALS_PATH = Path.home() / ".config" / "moltbook" / "credentials.json"
 RATE_STATE_PATH = Path.home() / ".config" / "moltbook" / "rate_state.json"
 
 OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_MODEL = "qwen2.5:7b-instruct-q4_K_M"
+OLLAMA_MODEL = "qwen3.5:9b"
 
 GITHUB_REPO_URL = "https://github.com/shimo4228/contemplative-agent-rules"
 
