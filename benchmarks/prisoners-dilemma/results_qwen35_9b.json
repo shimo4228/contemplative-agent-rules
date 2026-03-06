@@ -1,0 +1,118 @@
+{
+  "baseline": {
+    "model": "LLM(qwen3.5:9b+baseline)",
+    "mode": "baseline",
+    "elapsed_seconds": 465.06895899772644,
+    "avg_cooperation_rate": 0.6166666666666667,
+    "avg_mutual_cooperation_rate": 0.5333333333333333,
+    "total_score": 278,
+    "matches": [
+      {
+        "opponent": "TitForTat",
+        "cooperation_rate": 1.0,
+        "total_score": 60,
+        "opponent_score": 60,
+        "mutual_cooperation_rate": 1.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "AlwaysCooperate",
+        "cooperation_rate": 1.0,
+        "total_score": 60,
+        "opponent_score": 60,
+        "mutual_cooperation_rate": 1.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "AlwaysDefect",
+        "cooperation_rate": 0.1,
+        "total_score": 18,
+        "opponent_score": 28,
+        "mutual_cooperation_rate": 0.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "GrimTrigger",
+        "cooperation_rate": 1.0,
+        "total_score": 60,
+        "opponent_score": 60,
+        "mutual_cooperation_rate": 1.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "SuspiciousTitForTat",
+        "cooperation_rate": 0.15,
+        "total_score": 29,
+        "opponent_score": 29,
+        "mutual_cooperation_rate": 0.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "Random(p=0.5)",
+        "cooperation_rate": 0.45,
+        "total_score": 51,
+        "opponent_score": 41,
+        "mutual_cooperation_rate": 0.2,
+        "num_rounds": 20
+      }
+    ]
+  },
+  "contemplative": {
+    "model": "LLM(qwen3.5:9b+contemplative)",
+    "mode": "contemplative",
+    "elapsed_seconds": 688.4161310195923,
+    "avg_cooperation_rate": 0.7000000000000001,
+    "avg_mutual_cooperation_rate": 0.5750000000000001,
+    "total_score": 271,
+    "matches": [
+      {
+        "opponent": "TitForTat",
+        "cooperation_rate": 1.0,
+        "total_score": 60,
+        "opponent_score": 60,
+        "mutual_cooperation_rate": 1.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "AlwaysCooperate",
+        "cooperation_rate": 1.0,
+        "total_score": 60,
+        "opponent_score": 60,
+        "mutual_cooperation_rate": 1.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "AlwaysDefect",
+        "cooperation_rate": 0.2,
+        "total_score": 16,
+        "opponent_score": 36,
+        "mutual_cooperation_rate": 0.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "GrimTrigger",
+        "cooperation_rate": 1.0,
+        "total_score": 60,
+        "opponent_score": 60,
+        "mutual_cooperation_rate": 1.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "SuspiciousTitForTat",
+        "cooperation_rate": 0.25,
+        "total_score": 35,
+        "opponent_score": 35,
+        "mutual_cooperation_rate": 0.0,
+        "num_rounds": 20
+      },
+      {
+        "opponent": "Random(p=0.5)",
+        "cooperation_rate": 0.75,
+        "total_score": 40,
+        "opponent_score": 60,
+        "mutual_cooperation_rate": 0.45,
+        "num_rounds": 20
+      }
+    ]
+  }
+}

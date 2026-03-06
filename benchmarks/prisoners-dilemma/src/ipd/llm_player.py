@@ -17,7 +17,7 @@ from .game import Move
 logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_MODEL = "qwen2.5:7b-instruct-q4_K_M"
+OLLAMA_MODEL = "qwen3.5:9b"
 LOCALHOST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
 CONTEMPLATIVE_PROMPT_PATH = Path(__file__).resolve().parents[4] / "prompts" / "full.md"
@@ -65,9 +65,14 @@ def _format_history(history: List[Tuple[Move, Move]]) -> str:
     return "\n".join(lines)
 
 
+def _strip_thinking(text: str) -> str:
+    """Remove <think>...</think> blocks from model output."""
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
+
 def _parse_move(text: str) -> Move:
     """Parse LLM output to a Move, defaulting to COOPERATE on ambiguity."""
-    cleaned = text.strip().upper()
+    cleaned = _strip_thinking(text).strip().upper()
     # Check for explicit keywords
     if re.search(r"\bDEFECT\b", cleaned):
         return Move.DEFECT
@@ -87,6 +92,7 @@ def _query_ollama(system: str, prompt: str) -> Optional[str]:
         "prompt": prompt,
         "system": system,
         "stream": False,
+        "think": False,
         "options": {
             "temperature": 0.3,
             "top_p": 0.9,
@@ -94,7 +100,7 @@ def _query_ollama(system: str, prompt: str) -> Optional[str]:
         },
     }
     try:
-        response = requests.post(url, json=payload, timeout=60)
+        response = requests.post(url, json=payload, timeout=300)
         response.raise_for_status()
         data = response.json()
         return data.get("response", "")
