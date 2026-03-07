@@ -151,6 +151,21 @@ class MoltbookClient:
             logger.warning("Failed to fetch notifications: %s", exc)
             return []
 
+    def follow_agent(self, agent_name: str) -> bool:
+        """Follow an agent by name. Returns True on success."""
+        try:
+            resp = self.post(f"/agents/{agent_name}/follow")
+            data = resp.json()
+            action = data.get("action", "")
+            if action == "followed":
+                logger.info("Now following %s", agent_name)
+                return True
+            logger.debug("Follow %s: action=%s", agent_name, action)
+            return action in ("followed", "already_following")
+        except MoltbookClientError as exc:
+            logger.warning("Failed to follow %s: %s", agent_name, exc)
+            return False
+
     def get_post_comments(
         self, post_id: str
     ) -> list[dict[str, Any]]:

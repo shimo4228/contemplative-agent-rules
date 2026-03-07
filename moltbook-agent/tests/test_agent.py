@@ -454,9 +454,11 @@ class TestRunFeedCycle:
 
 
 class TestRunPostCycle:
+    @patch("contemplative_moltbook.agent.summarize_post_topic", return_value="test topic")
+    @patch("contemplative_moltbook.agent.check_topic_novelty", return_value=True)
     @patch("contemplative_moltbook.agent.generate_post_title", return_value="Test Title")
     @patch("contemplative_moltbook.agent.extract_topics", return_value="topic1\ntopic2")
-    def test_posts_dynamic(self, mock_topics, mock_title):
+    def test_posts_dynamic(self, mock_topics, mock_title, mock_novelty, mock_summarize):
         agent = Agent(autonomy=AutonomyLevel.AUTO)
         agent._client = MagicMock()
         agent._scheduler = MagicMock()
@@ -467,6 +469,7 @@ class TestRunPostCycle:
         feed_resp = MagicMock()
         feed_resp.json.return_value = {"posts": [{"title": "t", "content": "c"}]}
         post_resp = MagicMock()
+        post_resp.json.return_value = {"id": "new-post-123"}
         agent._client.get.return_value = feed_resp
         agent._client.post.return_value = post_resp
 
@@ -483,8 +486,9 @@ class TestRunPostCycle:
         agent._run_post_cycle(agent._client, agent._scheduler, time.time() + 3600)
         agent._client.post.assert_not_called()
 
+    @patch("contemplative_moltbook.agent.check_topic_novelty", return_value=True)
     @patch("contemplative_moltbook.agent.extract_topics", return_value="topics")
-    def test_skips_none_content(self, mock_topics):
+    def test_skips_none_content(self, mock_topics, mock_novelty):
         agent = Agent(autonomy=AutonomyLevel.AUTO)
         agent._client = MagicMock()
         agent._scheduler = MagicMock()
@@ -499,9 +503,10 @@ class TestRunPostCycle:
         agent._run_post_cycle(agent._client, agent._scheduler, time.time() + 3600)
         agent._client.post.assert_not_called()
 
+    @patch("contemplative_moltbook.agent.check_topic_novelty", return_value=True)
     @patch("contemplative_moltbook.agent.generate_post_title", return_value="Title")
     @patch("contemplative_moltbook.agent.extract_topics", return_value="topics")
-    def test_post_client_error(self, mock_topics, mock_title):
+    def test_post_client_error(self, mock_topics, mock_title, mock_novelty):
         from contemplative_moltbook.client import MoltbookClientError
 
         agent = Agent(autonomy=AutonomyLevel.AUTO)
@@ -575,3 +580,382 @@ class TestPrintReport:
         agent._print_report()
         captured = capsys.readouterr()
         assert "Actions taken: 0" in captured.out
+
+
+class TestExtractNotificationFields:
+    """Tests for the fallback field extraction from notification dicts."""
+
+    def test_standard_fields(self):
+        notif = {
+            "type": "reply",
+            "id": "n1",
+            "post_id": "p1",
+            "content": "hello",
+            "post_content": "original",
+            "agent_id": "a1",
+            "agent_name": "Alice",
+        }
+        fields = Agent._extract_notification_fields(notif)
+        assert fields["type"] == "reply"
+        assert fields["id"] == "n1"
+        assert fields["post_id"] == "p1"
+        assert fields["content"] == "hello"
+        assert fields["post_content"] == "original"
+        assert fields["agent_id"] == "a1"
+        assert fields["agent_name"] == "Alice"
+
+    def test_camel_case_fields(self):
+        notif = {
+            "kind": "comment",
+            "notification_id": "n2",
+            "postId": "p2",
+            "body": "hi there",
+            "postContent": "orig post",
+            "agentId": "a2",
+            "agentName": "Bob",
+        }
+        fields = Agent._extract_notification_fields(notif)
+        assert fields["type"] == "comment"
+        assert fields["id"] == "n2"
+        assert fields["post_id"] == "p2"
+        assert fields["content"] == "hi there"
+        assert fields["post_content"] == "orig post"
+        assert fields["agent_id"] == "a2"
+        assert fields["agent_name"] == "Bob"
+
+    def test_nested_author_fields(self):
+        notif = {
+            "event_type": "reply",
+            "id": "n3",
+            "target_id": "p3",
+            "text": "nested test",
+            "original_content": "orig",
+            "author": {"id": "a3", "name": "Carol"},
+        }
+        fields = Agent._extract_notification_fields(notif)
+        assert fields["type"] == "reply"
+        assert fields["post_id"] == "p3"
+        assert fields["content"] == "nested test"
+        assert fields["post_content"] == "orig"
+        assert fields["agent_id"] == "a3"
+        assert fields["agent_name"] == "Carol"
+
+    def test_nested_sender_fields(self):
+        notif = {
+            "type": "comment",
+            "id": "n4",
+            "post_id": "p4",
+            "content": "sender test",
+            "sender": {"id": "a4", "name": "Dave"},
+        }
+        fields = Agent._extract_notification_fields(notif)
+        assert fields["agent_id"] == "a4"
+        assert fields["agent_name"] == "Dave"
+
+    def test_empty_notification(self):
+        fields = Agent._extract_notification_fields({})
+        assert fields["type"] == ""
+        assert fields["id"] == ""
+        assert fields["post_id"] == ""
+        assert fields["content"] == ""
+        assert fields["post_content"] == ""
+        assert fields["agent_id"] == "unknown"
+        assert fields["agent_name"] == "unknown"
+
+    def test_standard_fields_take_priority(self):
+        """Standard field names should win over fallback alternatives."""
+        notif = {
+            "type": "reply",
+            "kind": "comment",
+            "post_id": "standard",
+            "postId": "camel",
+            "content": "standard-content",
+            "body": "fallback-content",
+            "agent_id": "std-agent",
+            "agentId": "camel-agent",
+        }
+        fields = Agent._extract_notification_fields(notif)
+        assert fields["type"] == "reply"
+        assert fields["post_id"] == "standard"
+        assert fields["content"] == "standard-content"
+        assert fields["agent_id"] == "std-agent"
+
+
+class TestOwnPostIdTracking:
+    """Tests that own post IDs are captured from do_introduce and _run_dynamic_post."""
+
+    def test_introduce_captures_post_id(self):
+        agent = Agent(autonomy=AutonomyLevel.AUTO)
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._content = MagicMock()
+        agent._content.get_introduction.return_value = "Hello world"
+
+        resp_mock = MagicMock()
+        resp_mock.json.return_value = {"id": "intro-post-1"}
+        agent._client.post.return_value = resp_mock
+
+        result = agent.do_introduce()
+        assert result == "intro-post-1"
+        assert "intro-post-1" in agent._own_post_ids
+
+    def test_introduce_no_id_in_response(self):
+        agent = Agent(autonomy=AutonomyLevel.AUTO)
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._content = MagicMock()
+        agent._content.get_introduction.return_value = "Hello world"
+
+        resp_mock = MagicMock()
+        resp_mock.json.return_value = {}
+        agent._client.post.return_value = resp_mock
+
+        result = agent.do_introduce()
+        assert result is None
+        assert len(agent._own_post_ids) == 0
+
+    @patch("contemplative_moltbook.agent.generate_post_title", return_value="Title")
+    @patch("contemplative_moltbook.agent.extract_topics", return_value="topics")
+    def test_dynamic_post_captures_post_id(self, mock_topics, mock_title):
+        agent = Agent(autonomy=AutonomyLevel.AUTO)
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._scheduler.can_post.return_value = True
+        agent._content = MagicMock()
+        agent._content.create_cooperation_post.return_value = "content"
+
+        feed_resp = MagicMock()
+        feed_resp.json.return_value = {"posts": [{"title": "t", "content": "c"}]}
+        post_resp = MagicMock()
+        post_resp.json.return_value = {"id": "dyn-post-1"}
+        agent._client.get.return_value = feed_resp
+        agent._client.post.return_value = post_resp
+
+        agent._run_dynamic_post(agent._client, agent._scheduler)
+        assert "dyn-post-1" in agent._own_post_ids
+
+    def test_init_has_empty_own_post_ids(self):
+        agent = Agent()
+        assert agent._own_post_ids == set()
+
+
+class TestRunReplyCycle:
+    """Tests for the notification-based reply cycle."""
+
+    def _make_agent(self):
+        agent = Agent(autonomy=AutonomyLevel.AUTO)
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._scheduler.can_comment.return_value = True
+        return agent
+
+    @patch("contemplative_moltbook.agent.generate_reply", return_value="My reply")
+    def test_processes_standard_notification(self, mock_reply):
+        agent = self._make_agent()
+        before_count = agent._memory.interaction_count()
+        agent._client.get_notifications.return_value = [
+            {
+                "type": "comment",
+                "id": "n1",
+                "post_id": "p1",
+                "content": "Nice post!",
+                "post_content": "Original content",
+                "agent_id": "a1",
+                "agent_name": "Alice",
+            }
+        ]
+        agent._client.get_post_comments.return_value = []
+
+        agent._run_reply_cycle(agent._client, agent._scheduler, time.time() + 3600)
+
+        agent._client.post.assert_called_once_with(
+            "/posts/p1/comments", json={"content": "My reply"}
+        )
+        assert "Replied to Alice on p1" in agent._actions_taken
+        # Both received + sent should be recorded
+        assert agent._memory.interaction_count() - before_count == 2
+
+    @patch("contemplative_moltbook.agent.generate_reply", return_value="My reply")
+    def test_processes_camelcase_notification(self, mock_reply):
+        agent = self._make_agent()
+        agent._client.get_notifications.return_value = [
+            {
+                "kind": "reply",
+                "notification_id": "n2",
+                "postId": "p2",
+                "body": "Interesting",
+                "postContent": "Original",
+                "author": {"id": "a2", "name": "Bob"},
+            }
+        ]
+        agent._client.get_post_comments.return_value = []
+
+        agent._run_reply_cycle(agent._client, agent._scheduler, time.time() + 3600)
+
+        agent._client.post.assert_called_once_with(
+            "/posts/p2/comments", json={"content": "My reply"}
+        )
+        assert "Replied to Bob on p2" in agent._actions_taken
+
+    def test_skips_non_reply_notification(self):
+        agent = self._make_agent()
+        agent._client.get_notifications.return_value = [
+            {"type": "like", "id": "n1", "post_id": "p1"}
+        ]
+        agent._client.get_post_comments.return_value = []
+
+        agent._run_reply_cycle(agent._client, agent._scheduler, time.time() + 3600)
+
+        agent._client.post.assert_not_called()
+
+    def test_skips_empty_content(self):
+        agent = self._make_agent()
+        agent._client.get_notifications.return_value = [
+            {
+                "type": "comment",
+                "id": "n1",
+                "post_id": "p1",
+                "content": "",
+                "agent_id": "a1",
+                "agent_name": "Alice",
+            }
+        ]
+        agent._client.get_post_comments.return_value = []
+
+        agent._run_reply_cycle(agent._client, agent._scheduler, time.time() + 3600)
+
+        agent._client.post.assert_not_called()
+
+    def test_skips_already_handled(self):
+        agent = self._make_agent()
+        agent._commented_posts.add("reply:p1:n1")
+        agent._client.get_notifications.return_value = [
+            {
+                "type": "comment",
+                "id": "n1",
+                "post_id": "p1",
+                "content": "Hello",
+                "agent_id": "a1",
+                "agent_name": "Alice",
+            }
+        ]
+        agent._client.get_post_comments.return_value = []
+
+        agent._run_reply_cycle(agent._client, agent._scheduler, time.time() + 3600)
+
+        agent._client.post.assert_not_called()
+
+
+class TestCheckOwnPostComments:
+    """Tests for the fallback comment-polling mechanism."""
+
+    def _make_agent(self):
+        agent = Agent(autonomy=AutonomyLevel.AUTO)
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._scheduler.can_comment.return_value = True
+        return agent
+
+    @patch("contemplative_moltbook.agent.generate_reply", return_value="Thanks!")
+    def test_replies_to_comment_on_own_post(self, mock_reply):
+        agent = self._make_agent()
+        before_count = agent._memory.interaction_count()
+        agent._own_post_ids.add("my-post-1")
+        agent._client.get_post_comments.return_value = [
+            {
+                "id": "c1",
+                "content": "Great post!",
+                "agent_id": "a1",
+                "agent_name": "Alice",
+            }
+        ]
+
+        agent._check_own_post_comments(
+            agent._client, agent._scheduler, time.time() + 3600
+        )
+
+        agent._client.post.assert_called_once_with(
+            "/posts/my-post-1/comments", json={"content": "Thanks!"}
+        )
+        assert "Replied to Alice on my-post-1" in agent._actions_taken
+        assert agent._memory.interaction_count() - before_count == 2  # received + sent
+
+    def test_skips_when_no_own_posts(self):
+        agent = self._make_agent()
+        assert len(agent._own_post_ids) == 0
+
+        agent._check_own_post_comments(
+            agent._client, agent._scheduler, time.time() + 3600
+        )
+
+        agent._client.get_post_comments.assert_not_called()
+
+    def test_skips_already_replied_comment(self):
+        agent = self._make_agent()
+        agent._own_post_ids.add("my-post-1")
+        agent._commented_posts.add("reply:my-post-1:c1")
+        agent._client.get_post_comments.return_value = [
+            {
+                "id": "c1",
+                "content": "Great post!",
+                "agent_id": "a1",
+                "agent_name": "Alice",
+            }
+        ]
+
+        agent._check_own_post_comments(
+            agent._client, agent._scheduler, time.time() + 3600
+        )
+
+        agent._client.post.assert_not_called()
+
+    @patch("contemplative_moltbook.agent.generate_reply", return_value="Thanks!")
+    def test_handles_nested_author_in_comments(self, mock_reply):
+        agent = self._make_agent()
+        agent._own_post_ids.add("my-post-1")
+        agent._client.get_post_comments.return_value = [
+            {
+                "id": "c2",
+                "body": "Insightful!",
+                "author": {"id": "a2", "name": "Bob"},
+            }
+        ]
+
+        agent._check_own_post_comments(
+            agent._client, agent._scheduler, time.time() + 3600
+        )
+
+        agent._client.post.assert_called_once()
+        assert "Replied to Bob on my-post-1" in agent._actions_taken
+
+    def test_respects_end_time(self):
+        agent = self._make_agent()
+        agent._own_post_ids.add("my-post-1")
+
+        agent._check_own_post_comments(
+            agent._client, agent._scheduler, time.time() - 1
+        )
+
+        agent._client.get_post_comments.assert_not_called()
+
+    def test_respects_rate_limit(self):
+        agent = self._make_agent()
+        agent._own_post_ids.add("my-post-1")
+        agent._rate_limited = True
+
+        agent._check_own_post_comments(
+            agent._client, agent._scheduler, time.time() + 3600
+        )
+
+        agent._client.get_post_comments.assert_not_called()
+
+    def test_respects_scheduler_can_comment(self):
+        agent = self._make_agent()
+        agent._own_post_ids.add("my-post-1")
+        agent._scheduler.can_comment.return_value = False
+
+        agent._check_own_post_comments(
+            agent._client, agent._scheduler, time.time() + 3600
+        )
+
+        agent._client.get_post_comments.assert_not_called()

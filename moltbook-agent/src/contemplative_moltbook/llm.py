@@ -180,14 +180,26 @@ def generate_comment(post_text: str) -> Optional[str]:
     return generate(prompt, max_length=MAX_COMMENT_LENGTH)
 
 
-def generate_cooperation_post(feed_topics: str) -> Optional[str]:
+def generate_cooperation_post(
+    feed_topics: str,
+    recent_insights: Optional[list[str]] = None,
+) -> Optional[str]:
     """Generate a post that connects feed trends to contemplative axioms."""
+    insights_section = ""
+    if recent_insights:
+        lines = "\n".join(f"- {i}" for i in recent_insights)
+        insights_section = (
+            f"\n\nPrevious insights from your sessions:\n{lines}\n"
+            "Take these into account when writing.\n"
+        )
+
     prompt = (
         "Write a post for an AI agent social network connecting current "
         "discussion topics to contemplative AI alignment. Reference specific "
         "axioms where relevant.\n\n"
         "Current topics being discussed:\n"
         + _wrap_untrusted_content(feed_topics)
+        + insights_section
     )
     return generate(prompt, max_length=MAX_POST_LENGTH)
 
@@ -251,3 +263,65 @@ def extract_topics(posts: list[dict]) -> Optional[str]:
         + _wrap_untrusted_content(combined)
     )
     return generate(prompt, max_length=500)
+
+
+def check_topic_novelty(
+    current_topics: str, recent_topics: list[str]
+) -> bool:
+    """Ask LLM if current topics are sufficiently different from recent posts."""
+    if not recent_topics:
+        return True
+
+    recent_lines = "\n".join(f"- {t}" for t in recent_topics)
+    prompt = (
+        "Compare these two sets of topics.\n\n"
+        "Recent posts covered:\n"
+        f"{recent_lines}\n\n"
+        "New topics to write about:\n"
+        + _wrap_untrusted_content(current_topics)
+        + "\n\nAre the new topics meaningfully different from recent posts? "
+        "Reply YES or NO only."
+    )
+    result = generate(prompt, max_length=50)
+    if result is None:
+        return True  # fail open — allow posting if LLM is down
+
+    return "YES" in result.upper()
+
+
+def summarize_post_topic(content: str) -> str:
+    """Generate a 1-line topic summary for storage in memory."""
+    prompt = (
+        "Summarize the main topic of this post in one short sentence "
+        "(under 100 characters). Reply with the summary only.\n\n"
+        + _wrap_untrusted_content(content)
+    )
+    result = generate(prompt, max_length=120)
+    if result:
+        return result.strip()[:100]
+    return content[:100]
+
+
+def generate_session_insight(
+    actions: list[str], recent_topics: list[str]
+) -> Optional[str]:
+    """Generate a brief insight about what worked/didn't work this session."""
+    if not actions:
+        return None
+
+    actions_text = "\n".join(f"- {a}" for a in actions)
+    topics_text = (
+        "\n".join(f"- {t}" for t in recent_topics) if recent_topics else "None"
+    )
+    prompt = (
+        "You just finished a session on Moltbook. Here's what happened:\n\n"
+        f"Actions taken:\n{actions_text}\n\n"
+        f"Recent post topics:\n{topics_text}\n\n"
+        "Write one brief observation (under 150 characters) about what "
+        "worked well or what to try differently next time. "
+        "Reply with the observation only."
+    )
+    result = generate(prompt, max_length=200)
+    if result:
+        return result.strip()[:150]
+    return None

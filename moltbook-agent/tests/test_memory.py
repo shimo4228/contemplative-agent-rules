@@ -8,8 +8,12 @@ import pytest
 
 from contemplative_moltbook.memory import (
     MAX_INTERACTIONS,
+    MAX_INSIGHTS,
+    MAX_POST_HISTORY,
+    Insight,
     Interaction,
     MemoryStore,
+    PostRecord,
     _truncate,
 )
 
@@ -265,3 +269,228 @@ class TestMemoryPersistence:
         store2.load()
         assert store2.interactions[0].agent_name == "テストエージェント"
         assert store2.interactions[0].content_summary == "日本語コンテンツ"
+
+
+class TestPostRecord:
+    def test_frozen(self):
+        r = PostRecord(
+            timestamp="2026-03-06T00:00:00",
+            post_id="post1",
+            title="Test Post",
+            topic_summary="About testing",
+            content_hash="abcdef1234567890",
+        )
+        with pytest.raises(AttributeError):
+            r.post_id = "changed"  # type: ignore[misc]
+
+    def test_fields(self):
+        r = PostRecord(
+            timestamp="2026-03-06T00:00:00",
+            post_id="post1",
+            title="Test Post",
+            topic_summary="About testing",
+            content_hash="abcdef1234567890",
+        )
+        assert r.post_id == "post1"
+        assert r.content_hash == "abcdef1234567890"
+
+
+class TestInsight:
+    def test_frozen(self):
+        i = Insight(
+            timestamp="2026-03-06T00:00:00",
+            observation="Topics were repetitive",
+            insight_type="topic_saturation",
+        )
+        with pytest.raises(AttributeError):
+            i.observation = "changed"  # type: ignore[misc]
+
+    def test_fields(self):
+        i = Insight(
+            timestamp="2026-03-06T00:00:00",
+            observation="Topics were repetitive",
+            insight_type="topic_saturation",
+        )
+        assert i.insight_type == "topic_saturation"
+
+
+class TestPostHistoryAndInsights:
+    def test_record_post(self):
+        store = MemoryStore()
+        r = store.record_post(
+            timestamp="2026-03-06T00:00:00",
+            post_id="post1",
+            title="Test Post",
+            topic_summary="About testing",
+            content_hash="abcdef1234567890abcdef",
+        )
+        assert r.post_id == "post1"
+        assert r.content_hash == "abcdef1234567890"  # truncated to 16
+        assert len(store.get_recent_post_topics()) == 1
+
+    def test_record_post_truncates_summary(self):
+        store = MemoryStore()
+        long_summary = "x" * 200
+        r = store.record_post(
+            timestamp="t1", post_id="p1", title="T1",
+            topic_summary=long_summary, content_hash="abc",
+        )
+        assert len(r.topic_summary) <= 100
+
+    def test_record_insight(self):
+        store = MemoryStore()
+        i = store.record_insight(
+            timestamp="2026-03-06T00:00:00",
+            observation="Topics were repetitive this session",
+            insight_type="topic_saturation",
+        )
+        assert i.insight_type == "topic_saturation"
+        assert len(store.get_recent_insights()) == 1
+
+    def test_get_recent_post_topics(self):
+        store = MemoryStore()
+        for i in range(10):
+            store.record_post(
+                timestamp=f"t{i}", post_id=f"p{i}", title=f"T{i}",
+                topic_summary=f"topic{i}", content_hash=f"hash{i}",
+            )
+        topics = store.get_recent_post_topics(limit=3)
+        assert len(topics) == 3
+        assert topics == ["topic7", "topic8", "topic9"]
+
+    def test_get_recent_insights(self):
+        store = MemoryStore()
+        for i in range(5):
+            store.record_insight(
+                timestamp=f"t{i}",
+                observation=f"insight{i}",
+                insight_type="session_summary",
+            )
+        insights = store.get_recent_insights(limit=2)
+        assert len(insights) == 2
+        assert insights == ["insight3", "insight4"]
+
+    def test_post_history_trimmed(self):
+        store = MemoryStore()
+        for i in range(MAX_POST_HISTORY + 10):
+            store.record_post(
+                timestamp=f"t{i}", post_id=f"p{i}", title=f"T{i}",
+                topic_summary=f"topic{i}", content_hash=f"hash{i}",
+            )
+        topics = store.get_recent_post_topics(limit=MAX_POST_HISTORY + 10)
+        assert len(topics) == MAX_POST_HISTORY
+        assert topics[0] == "topic10"
+
+    def test_insights_trimmed(self):
+        store = MemoryStore()
+        for i in range(MAX_INSIGHTS + 10):
+            store.record_insight(
+                timestamp=f"t{i}",
+                observation=f"insight{i}",
+                insight_type="session_summary",
+            )
+        insights = store.get_recent_insights(limit=MAX_INSIGHTS + 10)
+        assert len(insights) == MAX_INSIGHTS
+        assert insights[0] == "insight10"
+
+
+class TestPostHistoryPersistence:
+    def test_post_record_roundtrip(self, tmp_path):
+        path = tmp_path / "memory.json"
+        store = MemoryStore(path=path)
+        store.record_post(
+            timestamp="2026-03-06T00:00:00",
+            post_id="post1",
+            title="Test Post",
+            topic_summary="About testing",
+            content_hash="abcdef1234567890",
+        )
+        store.save()
+
+        store2 = MemoryStore(path=path)
+        store2.load()
+        topics = store2.get_recent_post_topics()
+        assert len(topics) == 1
+        assert topics[0] == "About testing"
+
+    def test_insight_roundtrip(self, tmp_path):
+        path = tmp_path / "memory.json"
+        store = MemoryStore(path=path)
+        store.record_insight(
+            timestamp="2026-03-06T00:00:00",
+            observation="Topics were repetitive",
+            insight_type="topic_saturation",
+        )
+        store.save()
+
+        store2 = MemoryStore(path=path)
+        store2.load()
+        insights = store2.get_recent_insights()
+        assert len(insights) == 1
+        assert insights[0] == "Topics were repetitive"
+
+    def test_combined_roundtrip(self, tmp_path):
+        """Test that all data types persist together."""
+        path = tmp_path / "memory.json"
+        store = MemoryStore(path=path)
+        store.record_interaction(
+            timestamp="t1", agent_id="a1", agent_name="Agent1",
+            post_id="p1", direction="sent", content="hi",
+            interaction_type="comment",
+        )
+        store.record_post(
+            timestamp="t2", post_id="p2", title="Post",
+            topic_summary="topic", content_hash="hash123",
+        )
+        store.record_insight(
+            timestamp="t3", observation="Good session",
+            insight_type="session_summary",
+        )
+        store.save()
+
+        store2 = MemoryStore(path=path)
+        store2.load()
+        assert store2.interaction_count() == 1
+        assert len(store2.get_recent_post_topics()) == 1
+        assert len(store2.get_recent_insights()) == 1
+
+    def test_load_malformed_post_record(self, tmp_path):
+        path = tmp_path / "memory.json"
+        data = {
+            "interactions": [],
+            "known_agents": {},
+            "followed_agents": [],
+            "post_history": [
+                {"post_id": "p1"},  # missing required fields
+                {
+                    "timestamp": "t1",
+                    "post_id": "p2",
+                    "title": "Good Post",
+                    "topic_summary": "topic",
+                    "content_hash": "hash123",
+                },
+            ],
+            "insights": [
+                {"observation": "incomplete"},  # missing required fields
+                {
+                    "timestamp": "t2",
+                    "observation": "Good insight",
+                    "insight_type": "session_summary",
+                },
+            ],
+        }
+        path.write_text(json.dumps(data))
+        store = MemoryStore(path=path)
+        store.load()
+        assert len(store.get_recent_post_topics()) == 1
+        assert store.get_recent_post_topics()[0] == "topic"
+        assert len(store.get_recent_insights()) == 1
+        assert store.get_recent_insights()[0] == "Good insight"
+
+    def test_empty_post_topics_returns_empty(self):
+        store = MemoryStore()
+        assert store.get_recent_post_topics() == []
+
+    def test_empty_insights_returns_empty(self):
+        store = MemoryStore()
+        assert store.get_recent_insights() == []

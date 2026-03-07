@@ -175,8 +175,12 @@ class ContentManager:
         self._comment_count += 1
         return comment
 
-    def create_cooperation_post(self, feed_topics: str) -> Optional[str]:
-        post = generate_cooperation_post(feed_topics)
+    def create_cooperation_post(
+        self,
+        feed_topics: str,
+        recent_insights: Optional[list[str]] = None,
+    ) -> Optional[str]:
+        post = generate_cooperation_post(feed_topics, recent_insights=recent_insights)
         if post is None:
             return None
         if self._is_duplicate(post):
