@@ -97,10 +97,10 @@ class TestPassesContentFilter:
         assert Agent._passes_content_filter("   ") is False
 
     def test_too_long(self):
-        assert Agent._passes_content_filter("x" * 5001) is False
+        assert Agent._passes_content_filter("x" * 20001) is False
 
     def test_at_max_length(self):
-        assert Agent._passes_content_filter("x" * 5000) is True
+        assert Agent._passes_content_filter("x" * 20000) is True
 
     @pytest.mark.parametrize("forbidden", [
         "api_key", "API_KEY", "api-key", "apikey", "password",
@@ -140,7 +140,7 @@ class TestConfirmAction:
 
     def test_guarded_rejects_too_long(self):
         agent = Agent(autonomy=AutonomyLevel.GUARDED)
-        assert agent._confirm_action("test", "x" * 5001) is False
+        assert agent._confirm_action("test", "x" * 20001) is False
 
     @patch("builtins.input", return_value="y")
     def test_approve_asks_user_yes(self, mock_input):
