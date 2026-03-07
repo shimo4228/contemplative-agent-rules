@@ -4,6 +4,7 @@ import enum
 import hashlib
 import json
 import logging
+import random
 import re
 import time
 from datetime import datetime, timezone
@@ -11,7 +12,16 @@ from typing import List, Optional, Set
 
 from .auth import check_claim_status, load_credentials, register_agent
 from .client import MoltbookClient, MoltbookClientError
-from .config import FORBIDDEN_SUBSTRING_PATTERNS, FORBIDDEN_WORD_PATTERNS, MAX_POST_LENGTH, VALID_ID_PATTERN
+from .config import (
+    COMMENT_PACING_MAX_SECONDS,
+    COMMENT_PACING_MIN_SECONDS,
+    FEED_SCAN_LIMIT,
+    FORBIDDEN_SUBSTRING_PATTERNS,
+    FORBIDDEN_WORD_PATTERNS,
+    MAX_COMMENTS_PER_SESSION,
+    MAX_POST_LENGTH,
+    VALID_ID_PATTERN,
+)
 from .content import ContentManager
 from .llm import (
     check_topic_novelty,
@@ -32,8 +42,8 @@ from .verification import (
 
 logger = logging.getLogger(__name__)
 
-RELEVANCE_THRESHOLD = 0.5
-KNOWN_AGENT_THRESHOLD = 0.3
+RELEVANCE_THRESHOLD = 0.7
+KNOWN_AGENT_THRESHOLD = 0.5
 
 
 class AutonomyLevel(str, enum.Enum):
@@ -63,6 +73,7 @@ class Agent:
         self._commented_posts: Set[str] = set()
         self._own_post_ids: Set[str] = set()
         self._rate_limited: bool = False
+        self._session_comment_count: int = 0
         self._memory = memory or MemoryStore()
         self._memory.load()
 
@@ -228,6 +239,11 @@ class Agent:
         scheduler = self._get_scheduler()
         client = self._ensure_client()
 
+        # Check session comment limit
+        if self._session_comment_count >= MAX_COMMENTS_PER_SESSION:
+            logger.info("Session comment limit reached (%d)", MAX_COMMENTS_PER_SESSION)
+            return False
+
         post_text = post.get("content", "")
         post_id = post.get("id", "")
         if not post_text or not post_id:
@@ -238,8 +254,8 @@ class Agent:
             logger.warning("Invalid post_id format: %s", post_id[:50])
             return False
 
-        # Skip posts we already commented on this session
-        if post_id in self._commented_posts:
+        # Skip posts we already commented on (session + cross-session)
+        if post_id in self._commented_posts or self._memory.has_commented_on(post_id):
             logger.debug("Already commented on %s, skipping", post_id)
             return False
 
@@ -276,6 +292,8 @@ class Agent:
             )
             scheduler.record_comment()
             self._commented_posts.add(post_id)
+            self._session_comment_count += 1
+            self._memory.record_commented(post_id)
             self._actions_taken.append(
                 f"Commented on {post_id} (relevance: {score:.2f})"
             )
@@ -297,6 +315,12 @@ class Agent:
                 content=comment,
                 interaction_type="comment",
             )
+            # Pacing: random wait before next engagement
+            extra_wait = random.uniform(
+                COMMENT_PACING_MIN_SECONDS, COMMENT_PACING_MAX_SECONDS
+            )
+            logger.info("Pacing: waiting %.0fs before next engagement", extra_wait)
+            time.sleep(extra_wait)
             return True
         except MoltbookClientError as exc:
             logger.error("Failed to comment on %s: %s", post_id, exc)
@@ -632,7 +656,7 @@ class Agent:
     ) -> None:
         """Fetch and engage with posts from the feed."""
         posts = self._fetch_feed()
-        for post in posts:
+        for post in posts[:FEED_SCAN_LIMIT]:
             if time.time() >= end_time or self._rate_limited:
                 break
             challenge = post.get("verification_challenge")

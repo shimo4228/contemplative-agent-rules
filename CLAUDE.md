@@ -79,7 +79,7 @@ ipd-benchmark -r 20 -o results.json
 ## テスト
 
 ### Moltbook Agent
-311件全パス (2026-03-08)。全体カバレッジ 88%。
+324件全パス (2026-03-08)。全体カバレッジ 88%。
 distill 94%, memory 93%, agent 90%, verification 94%, scheduler 88%, content 87%, config 100%, cli 76%, llm 76%, auth 75%, client 71%。
 
 ### メモリアーキテクチャ (3層)
@@ -109,6 +109,7 @@ benchmark 98%, game 98%, strategies 94%, llm_player 80%。
 - [x] スリープタイム記憶蒸留 (distill.py + CLI)
 - [x] Identity Layer (identity.md → LLM system prompt)
 - [x] レガシー移行 (memory.json → 3層自動変換)
+- [x] 厳選モード (relevance 0.7, session limit 10, feed scan 5, pacing 60-180s, cross-session dedup)
 
 ## 論文
 

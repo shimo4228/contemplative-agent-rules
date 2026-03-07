@@ -356,6 +356,7 @@ class MemoryStore:
         self._interactions: List[Interaction] = []
         self._post_history: List[PostRecord] = []
         self._insights_list: List[Insight] = []
+        self._commented_cache: Optional[set] = None
 
     @property
     def interactions(self) -> Tuple[Interaction, ...]:
@@ -603,3 +604,26 @@ class MemoryStore:
     def get_recent_insights(self, limit: int = 3) -> List[str]:
         """Return observation strings of recent insights."""
         return [i.observation for i in self._insights_list[-limit:]]
+
+    def has_commented_on(self, post_id: str) -> bool:
+        """Check if we've commented on this post in the last 30 days."""
+        if self._commented_cache is None:
+            self._commented_cache = self._build_commented_cache()
+        return post_id in self._commented_cache
+
+    def record_commented(self, post_id: str) -> None:
+        """Record that we commented on a post (in-memory cache)."""
+        if self._commented_cache is None:
+            self._commented_cache = self._build_commented_cache()
+        self._commented_cache.add(post_id)
+
+    def _build_commented_cache(self) -> set:
+        """Build cache of post_ids we've commented on from episode logs."""
+        episodes = self._episodes.read_range(days=30)
+        return {
+            ep["data"]["post_id"]
+            for ep in episodes
+            if ep.get("type") == "interaction"
+            and ep.get("data", {}).get("direction") == "sent"
+            and ep.get("data", {}).get("post_id")
+        }

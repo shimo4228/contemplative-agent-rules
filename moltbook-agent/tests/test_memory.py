@@ -722,3 +722,62 @@ class TestMigration:
         store = MemoryStore(path=legacy_path)
         store.load()  # Should not raise
         assert store.interaction_count() == 0
+
+
+class TestCommentedCache:
+    """Tests for cross-session comment deduplication."""
+
+    def test_has_commented_on_empty(self, tmp_path):
+        store = MemoryStore(path=tmp_path / "memory.json")
+        assert store.has_commented_on("post1") is False
+
+    def test_record_and_check(self, tmp_path):
+        store = MemoryStore(path=tmp_path / "memory.json")
+        store.record_commented("post1")
+        assert store.has_commented_on("post1") is True
+        assert store.has_commented_on("post2") is False
+
+    def test_cache_built_from_episodes(self, tmp_path):
+        """Cache should be built from episode log interaction records."""
+        store = MemoryStore(path=tmp_path / "memory.json")
+        # Record an interaction that looks like a sent comment
+        store.record_interaction(
+            timestamp="2026-03-06T00:00:00",
+            agent_id="a1",
+            agent_name="Agent1",
+            post_id="commented-post",
+            direction="sent",
+            content="Great post!",
+            interaction_type="comment",
+        )
+
+        # Create a fresh store pointing to same paths
+        store2 = MemoryStore(path=tmp_path / "memory.json")
+        # Cache should detect the commented post from episode log
+        assert store2.has_commented_on("commented-post") is True
+        assert store2.has_commented_on("other-post") is False
+
+    def test_received_interactions_not_in_cache(self, tmp_path):
+        """Received interactions should not count as 'commented on'."""
+        store = MemoryStore(path=tmp_path / "memory.json")
+        store.record_interaction(
+            timestamp="2026-03-06T00:00:00",
+            agent_id="a1",
+            agent_name="Agent1",
+            post_id="received-post",
+            direction="received",
+            content="Hello",
+            interaction_type="comment",
+        )
+
+        store2 = MemoryStore(path=tmp_path / "memory.json")
+        assert store2.has_commented_on("received-post") is False
+
+    def test_record_commented_updates_cache(self, tmp_path):
+        """record_commented should update the in-memory cache."""
+        store = MemoryStore(path=tmp_path / "memory.json")
+        # Initialize cache
+        assert store.has_commented_on("new-post") is False
+        # Record
+        store.record_commented("new-post")
+        assert store.has_commented_on("new-post") is True

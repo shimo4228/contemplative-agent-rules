@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from contemplative_moltbook.agent import Agent, AutonomyLevel, RELEVANCE_THRESHOLD
-from contemplative_moltbook.config import VALID_ID_PATTERN
+from contemplative_moltbook.agent import Agent, AutonomyLevel, RELEVANCE_THRESHOLD, KNOWN_AGENT_THRESHOLD
+from contemplative_moltbook.config import FEED_SCAN_LIMIT, MAX_COMMENTS_PER_SESSION, VALID_ID_PATTERN
 from contemplative_moltbook.memory import MemoryStore
 
 
@@ -366,46 +366,50 @@ class TestHandleVerification:
 
 
 class TestEngageWithPost:
-    def _make_agent(self):
-        agent = Agent(autonomy=AutonomyLevel.AUTO)
+    def _make_agent(self, tmp_path=None):
+        memory = _make_clean_memory(tmp_path) if tmp_path else None
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=memory)
         agent._client = MagicMock()
         agent._scheduler = MagicMock()
         agent._scheduler.can_comment.return_value = True
         agent._content = MagicMock()
         return agent
 
-    def test_empty_post(self):
-        agent = self._make_agent()
+    def test_empty_post(self, tmp_path):
+        agent = self._make_agent(tmp_path)
         assert agent._engage_with_post({"content": "", "id": "1"}) is False
         assert agent._engage_with_post({"content": "text", "id": ""}) is False
 
-    def test_invalid_post_id(self):
-        agent = self._make_agent()
+    def test_invalid_post_id(self, tmp_path):
+        agent = self._make_agent(tmp_path)
         assert agent._engage_with_post({"content": "text", "id": "../etc"}) is False
 
     @patch("contemplative_moltbook.agent.score_relevance", return_value=0.3)
-    def test_below_threshold(self, mock_score):
-        agent = self._make_agent()
+    def test_below_threshold(self, mock_score, tmp_path):
+        agent = self._make_agent(tmp_path)
         result = agent._engage_with_post({"content": "text", "id": "post1"})
         assert result is False
 
     @patch("contemplative_moltbook.agent.score_relevance", return_value=0.8)
-    def test_rate_limit_reached(self, mock_score):
-        agent = self._make_agent()
+    def test_rate_limit_reached(self, mock_score, tmp_path):
+        agent = self._make_agent(tmp_path)
         agent._scheduler.can_comment.return_value = False
         result = agent._engage_with_post({"content": "text", "id": "post1"})
         assert result is False
 
     @patch("contemplative_moltbook.agent.score_relevance", return_value=0.8)
-    def test_comment_generation_fails(self, mock_score):
-        agent = self._make_agent()
+    def test_comment_generation_fails(self, mock_score, tmp_path):
+        agent = self._make_agent(tmp_path)
         agent._content.create_comment.return_value = None
         result = agent._engage_with_post({"content": "text", "id": "post1"})
         assert result is False
 
+    @patch("contemplative_moltbook.agent.time")
+    @patch("contemplative_moltbook.agent.random")
     @patch("contemplative_moltbook.agent.score_relevance", return_value=0.8)
-    def test_successful_comment(self, mock_score):
-        agent = self._make_agent()
+    def test_successful_comment(self, mock_score, mock_random, mock_time, tmp_path):
+        mock_random.uniform.return_value = 60.0
+        agent = self._make_agent(tmp_path)
         agent._content.create_comment.return_value = "Great insight"
         resp_mock = MagicMock()
         agent._client.post.return_value = resp_mock
@@ -418,10 +422,10 @@ class TestEngageWithPost:
         assert len(agent._actions_taken) == 1
 
     @patch("contemplative_moltbook.agent.score_relevance", return_value=0.8)
-    def test_comment_client_error(self, mock_score):
+    def test_comment_client_error(self, mock_score, tmp_path):
         from contemplative_moltbook.client import MoltbookClientError
 
-        agent = self._make_agent()
+        agent = self._make_agent(tmp_path)
         agent._content.create_comment.return_value = "Great insight"
         agent._client.post.side_effect = MoltbookClientError("fail")
 
@@ -969,3 +973,120 @@ class TestCheckOwnPostComments:
         )
 
         agent._client.get_post_comments.assert_not_called()
+
+
+class TestSelectiveMode:
+    """Tests for the selective engagement mode."""
+
+    def test_relevance_threshold_raised(self):
+        """Relevance threshold should be 0.7 (was 0.5)."""
+        assert RELEVANCE_THRESHOLD == 0.7
+
+    def test_known_agent_threshold_raised(self):
+        """Known agent threshold should be 0.5 (was 0.3)."""
+        assert KNOWN_AGENT_THRESHOLD == 0.5
+
+    @patch("contemplative_moltbook.agent.score_relevance", return_value=0.8)
+    @patch("contemplative_moltbook.agent.time")
+    def test_session_comment_limit(self, mock_time, mock_score, tmp_path):
+        """Should stop commenting after MAX_COMMENTS_PER_SESSION."""
+        mock_time.time.return_value = 1000.0
+
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._scheduler.can_comment.return_value = True
+        agent._content = MagicMock()
+        agent._content.create_comment.return_value = "Nice"
+
+        # Simulate already at limit
+        agent._session_comment_count = MAX_COMMENTS_PER_SESSION
+
+        result = agent._engage_with_post({"content": "text", "id": "post1"})
+        assert result is False
+        agent._client.post.assert_not_called()
+
+    @patch("contemplative_moltbook.agent.score_relevance", return_value=0.8)
+    @patch("contemplative_moltbook.agent.random")
+    @patch("contemplative_moltbook.agent.time")
+    def test_session_comment_counter_increments(self, mock_time, mock_random, mock_score, tmp_path):
+        """Counter should increment on successful comment."""
+        mock_time.time.return_value = 1000.0
+        mock_random.uniform.return_value = 60.0
+
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._scheduler.can_comment.return_value = True
+        agent._content = MagicMock()
+        agent._content.create_comment.return_value = "Nice"
+
+        assert agent._session_comment_count == 0
+        agent._engage_with_post({"content": "text", "id": "post1"})
+        assert agent._session_comment_count == 1
+
+    def test_feed_scan_limit(self):
+        """Should only process FEED_SCAN_LIMIT posts from feed."""
+        agent = Agent(autonomy=AutonomyLevel.AUTO)
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+
+        posts = [{"content": f"post{i}", "id": f"p{i}"} for i in range(20)]
+
+        with patch.object(agent, "_fetch_feed", return_value=posts), \
+             patch.object(agent, "_engage_with_post") as mock_engage:
+            agent._run_feed_cycle(agent._client, agent._scheduler, time.time() + 3600)
+
+        assert mock_engage.call_count == FEED_SCAN_LIMIT
+
+    @patch("contemplative_moltbook.agent.score_relevance", return_value=0.6)
+    def test_relevance_below_new_threshold(self, mock_score, tmp_path):
+        """Score 0.6 should be rejected (above old 0.5, below new 0.7)."""
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._scheduler.can_comment.return_value = True
+        agent._content = MagicMock()
+
+        result = agent._engage_with_post({"content": "text", "id": "post1"})
+        assert result is False
+        agent._content.create_comment.assert_not_called()
+
+    @patch("contemplative_moltbook.agent.score_relevance", return_value=0.8)
+    @patch("contemplative_moltbook.agent.time")
+    def test_cross_session_dedup(self, mock_time, mock_score, tmp_path):
+        """Should skip posts that were commented on in previous sessions."""
+        mock_time.time.return_value = 1000.0
+        mock_time.sleep = MagicMock()
+
+        memory = _make_clean_memory(tmp_path)
+        # Simulate a previous session's comment by seeding the cache
+        memory._commented_cache = {"post1"}
+
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=memory)
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._scheduler.can_comment.return_value = True
+        agent._content = MagicMock()
+
+        result = agent._engage_with_post({"content": "text", "id": "post1"})
+        assert result is False
+        agent._client.post.assert_not_called()
+
+    @patch("contemplative_moltbook.agent.score_relevance", return_value=0.8)
+    @patch("contemplative_moltbook.agent.random")
+    @patch("contemplative_moltbook.agent.time")
+    def test_pacing_sleep_called(self, mock_time, mock_random, mock_score, tmp_path):
+        """Should call time.sleep for pacing after successful comment."""
+        mock_time.time.return_value = 1000.0
+        mock_random.uniform.return_value = 120.0
+
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
+        agent._client = MagicMock()
+        agent._scheduler = MagicMock()
+        agent._scheduler.can_comment.return_value = True
+        agent._content = MagicMock()
+        agent._content.create_comment.return_value = "Nice"
+
+        agent._engage_with_post({"content": "text", "id": "post1"})
+        mock_time.sleep.assert_called_once_with(120.0)
