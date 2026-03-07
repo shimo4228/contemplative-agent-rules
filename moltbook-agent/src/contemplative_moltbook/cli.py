@@ -2,9 +2,13 @@
 
 import argparse
 import logging
+import os
+import stat
 import sys
 
 from .agent import Agent, AutonomyLevel
+from .config import IDENTITY_PATH, KNOWLEDGE_PATH, MOLTBOOK_DATA_DIR
+from .llm import DEFAULT_SYSTEM_PROMPT
 
 
 def _setup_logging(verbose: bool = False) -> None:
@@ -14,6 +18,25 @@ def _setup_logging(verbose: bool = False) -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
+
+
+def _do_init() -> None:
+    """Initialize identity.md and knowledge.md files."""
+    MOLTBOOK_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    if IDENTITY_PATH.exists():
+        print(f"Identity file already exists: {IDENTITY_PATH}")
+    else:
+        IDENTITY_PATH.write_text(DEFAULT_SYSTEM_PROMPT, encoding="utf-8")
+        os.chmod(IDENTITY_PATH, stat.S_IRUSR | stat.S_IWUSR)
+        print(f"Created identity file: {IDENTITY_PATH}")
+
+    if KNOWLEDGE_PATH.exists():
+        print(f"Knowledge file already exists: {KNOWLEDGE_PATH}")
+    else:
+        KNOWLEDGE_PATH.write_text("# Knowledge Base\n\n## Agent Relationships\n\n## Recent Post Topics\n\n## Insights\n\n## Learned Patterns\n", encoding="utf-8")
+        os.chmod(KNOWLEDGE_PATH, stat.S_IRUSR | stat.S_IWUSR)
+        print(f"Created knowledge file: {KNOWLEDGE_PATH}")
 
 
 def main() -> None:
@@ -70,6 +93,20 @@ def main() -> None:
         help="Session duration in minutes (default: 60)",
     )
 
+    # init
+    subparsers.add_parser("init", help="Initialize identity and knowledge files")
+
+    # distill
+    distill_parser = subparsers.add_parser(
+        "distill", help="Distill recent episodes into learned patterns"
+    )
+    distill_parser.add_argument(
+        "--days", type=int, default=1, help="Days of episodes to process (default: 1)"
+    )
+    distill_parser.add_argument(
+        "--dry-run", action="store_true", help="Show results without writing"
+    )
+
     # solve
     solve_parser = subparsers.add_parser(
         "solve", help="Test verification solver"
@@ -82,6 +119,17 @@ def main() -> None:
     if args.command is None:
         parser.print_help()
         sys.exit(1)
+
+    if args.command == "init":
+        _do_init()
+        return
+
+    if args.command == "distill":
+        from .distill import distill
+
+        result = distill(days=args.days, dry_run=args.dry_run)
+        print(result)
+        return
 
     agent = Agent(autonomy=args.autonomy)
 

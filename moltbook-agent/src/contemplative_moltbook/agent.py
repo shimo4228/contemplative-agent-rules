@@ -7,7 +7,6 @@ import logging
 import re
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import List, Optional, Set
 
 from .auth import check_claim_status, load_credentials, register_agent
@@ -33,26 +32,8 @@ from .verification import (
 
 logger = logging.getLogger(__name__)
 
-ACTIVITY_LOG_PATH = Path.home() / ".config" / "moltbook" / "activity.jsonl"
 RELEVANCE_THRESHOLD = 0.5
 KNOWN_AGENT_THRESHOLD = 0.3
-
-
-def _append_activity(action: str, post_id: str, content: str, **extra: str) -> None:
-    """Append a single activity record to the JSONL log."""
-    record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "action": action,
-        "post_id": post_id,
-        "content": content,
-        **extra,
-    }
-    try:
-        ACTIVITY_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with ACTIVITY_LOG_PATH.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except OSError as exc:
-        logger.warning("Failed to write activity log: %s", exc)
 
 
 class AutonomyLevel(str, enum.Enum):
@@ -299,7 +280,10 @@ class Agent:
                 f"Commented on {post_id} (relevance: {score:.2f})"
             )
             logger.info(">> Comment on %s:\n%s", post_id[:12], comment)
-            _append_activity("comment", post_id, comment, relevance=f"{score:.2f}")
+            self._memory.episodes.append("activity", {
+                "action": "comment", "post_id": post_id,
+                "content": comment[:200], "relevance": f"{score:.2f}",
+            })
             # Record interaction in memory
             author = post.get("author") or {}
             agent_name = author.get("name", "unknown")
@@ -327,7 +311,9 @@ class Agent:
             if client.follow_agent(agent_name):
                 self._memory.record_follow(agent_name)
                 self._actions_taken.append(f"Followed {agent_name}")
-                _append_activity("follow", "", "", target_agent=agent_name)
+                self._memory.episodes.append("activity", {
+                    "action": "follow", "target_agent": agent_name,
+                })
 
     def run_session(self, duration_minutes: int = 60) -> List[str]:
         """Run an autonomous engagement session."""
@@ -510,11 +496,13 @@ class Agent:
         """Generate and send a reply to a comment, recording interactions."""
         history = self._memory.get_history_with(replier_id, limit=5)
         history_summaries = [h.content_summary for h in history]
+        knowledge_ctx = self._memory.knowledge.get_context_string() or None
 
         reply = generate_reply(
             original_post=original_post,
             their_comment=their_content,
             conversation_history=history_summaries,
+            knowledge_context=knowledge_ctx,
         )
         if reply is None:
             return
@@ -549,7 +537,10 @@ class Agent:
             logger.info(
                 ">> Reply to %s on %s:\n%s", replier_name, post_id[:12], reply
             )
-            _append_activity("reply", post_id, reply, target_agent=replier_name)
+            self._memory.episodes.append("activity", {
+                "action": "reply", "post_id": post_id,
+                "content": reply[:200], "target_agent": replier_name,
+            })
             self._memory.record_interaction(
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 agent_id=replier_id,
@@ -680,8 +671,10 @@ class Agent:
             return
 
         recent_insights = self._memory.get_recent_insights(limit=3)
+        knowledge_ctx = self._memory.knowledge.get_context_string() or None
         content = self._content.create_cooperation_post(
-            topics, recent_insights=recent_insights or None
+            topics, recent_insights=recent_insights or None,
+            knowledge_context=knowledge_ctx,
         )
         if content is None:
             return
@@ -712,7 +705,10 @@ class Agent:
                 self._own_post_ids.add(post_id)
             self._actions_taken.append(f"Posted: {title}")
             logger.info(">> New post [%s] (id=%s):\n%s", title, post_id, content)
-            _append_activity("post", post_id, content, title=title)
+            self._memory.episodes.append("activity", {
+                "action": "post", "post_id": post_id,
+                "content": content[:200], "title": title,
+            })
 
             # Record post in memory
             topic_summary = summarize_post_topic(content) or title

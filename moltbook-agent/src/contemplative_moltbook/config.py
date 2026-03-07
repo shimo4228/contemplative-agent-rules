@@ -11,8 +11,14 @@ VALID_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 BASE_URL = "https://www.moltbook.com/api/v1"
 ALLOWED_DOMAIN = "www.moltbook.com"
 
-CREDENTIALS_PATH = Path.home() / ".config" / "moltbook" / "credentials.json"
-RATE_STATE_PATH = Path.home() / ".config" / "moltbook" / "rate_state.json"
+MOLTBOOK_DATA_DIR = Path.home() / ".config" / "moltbook"
+CREDENTIALS_PATH = MOLTBOOK_DATA_DIR / "credentials.json"
+RATE_STATE_PATH = MOLTBOOK_DATA_DIR / "rate_state.json"
+IDENTITY_PATH = MOLTBOOK_DATA_DIR / "identity.md"
+KNOWLEDGE_PATH = MOLTBOOK_DATA_DIR / "knowledge.md"
+EPISODE_LOG_DIR = MOLTBOOK_DATA_DIR / "logs"
+LEGACY_MEMORY_PATH = MOLTBOOK_DATA_DIR / "memory.json"
+EPISODE_RETENTION_DAYS = 30
 
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_MODEL = "qwen3.5:9b"

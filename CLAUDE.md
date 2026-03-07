@@ -11,14 +11,15 @@ moltbook-agent/               # Moltbook 自律エージェント (Python)
   src/contemplative_moltbook/
     agent.py                  #   セッション管理・オーケストレータ
     client.py                 #   HTTP クライアント (認証・レート制限)
-    llm.py                    #   Ollama LLM インターフェース
-    memory.py                 #   永続会話メモリ (JSON)
+    llm.py                    #   Ollama LLM インターフェース (identity.md 対応)
+    memory.py                 #   3層メモリ (EpisodeLog + KnowledgeStore + facade)
+    distill.py                #   スリープタイム記憶蒸留
     config.py                 #   定数・設定
     content.py                #   四公理コンテンツ管理
     scheduler.py              #   レート制限スケジューラ
     verification.py           #   認証チャレンジソルバー
     auth.py                   #   クレデンシャル管理
-    cli.py                    #   CLI エントリポイント
+    cli.py                    #   CLI エントリポイント (init/distill 追加)
 adapters/                     # プラットフォーム別フォーマット
   cursor/                     #   Cursor (.mdc)
   copilot/                    #   GitHub Copilot (copilot-instructions.md)
@@ -43,6 +44,9 @@ uv run pytest tests/ --cov=contemplative_moltbook --cov-report=term-missing
 
 # CLI
 contemplative-moltbook --help
+contemplative-moltbook init                          # identity.md + knowledge.md 作成
+contemplative-moltbook distill --dry-run             # 記憶蒸留 (dry run)
+contemplative-moltbook distill --days 3              # 3日分を蒸留
 contemplative-moltbook solve "ttwweennttyy pplluuss ffiivvee"
 ```
 
@@ -61,7 +65,7 @@ ipd-benchmark -r 20 -o results.json
 ```
 
 - Python 3.9+ (venv は 3.13.5)
-- 依存: requests のみ。LLM は Ollama (qwen2.5:7b, localhost)
+- 依存: requests のみ。LLM は Ollama (qwen3.5:9b, localhost)
 - ビルド: hatch
 
 ## セキュリティ方針
@@ -75,8 +79,14 @@ ipd-benchmark -r 20 -o results.json
 ## テスト
 
 ### Moltbook Agent
-247件全パス (2026-03-06)。全体カバレッジ 88%。
-llm 100%, memory 100%, config 100%, cli 98%, verification 94%, scheduler 87%, content 87%, client 81%, agent 80%, auth 75%。
+311件全パス (2026-03-08)。全体カバレッジ 88%。
+distill 94%, memory 93%, agent 90%, verification 94%, scheduler 88%, content 87%, config 100%, cli 76%, llm 76%, auth 75%, client 71%。
+
+### メモリアーキテクチャ (3層)
+- **EpisodeLog**: `~/.config/moltbook/logs/YYYY-MM-DD.jsonl` (append-only)
+- **KnowledgeStore**: `~/.config/moltbook/knowledge.md` (蒸留された知識)
+- **Identity**: `~/.config/moltbook/identity.md` (エージェントの人格定義)
+- `distill` コマンドで日次蒸留 (cron 対応)
 
 ### IPD Benchmark
 53件全パス (2026-03-05)。カバレッジ 87%。
@@ -95,6 +105,10 @@ benchmark 98%, game 98%, strategies 94%, llm_player 80%。
 - [x] 動的コンテンツ生成 (フィードトピック抽出 → 協力ポスト)
 - [x] LLM プロンプト改善 (テンプレート的講義調 → 自然な対話スタイル)
 - [x] llm.py カバレッジ向上 (63% → 100%)
+- [x] 3層メモリアーキテクチャ (EpisodeLog + KnowledgeStore + MemoryStore facade)
+- [x] スリープタイム記憶蒸留 (distill.py + CLI)
+- [x] Identity Layer (identity.md → LLM system prompt)
+- [x] レガシー移行 (memory.json → 3層自動変換)
 
 ## 論文
 

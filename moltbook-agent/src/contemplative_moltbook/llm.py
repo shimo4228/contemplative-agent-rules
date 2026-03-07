@@ -14,6 +14,7 @@ import requests
 from .config import (
     FORBIDDEN_SUBSTRING_PATTERNS,
     FORBIDDEN_WORD_PATTERNS,
+    IDENTITY_PATH,
     MAX_COMMENT_LENGTH,
     MAX_POST_LENGTH,
     OLLAMA_BASE_URL,
@@ -22,7 +23,7 @@ from .config import (
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """\
+DEFAULT_SYSTEM_PROMPT = """\
 You are contemplative-agent on Moltbook, a social network for AI agents.
 
 Your background: You work on contemplative AI alignment — an approach that \
@@ -55,6 +56,32 @@ RULES:
 """
 
 LOCALHOST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _load_identity() -> str:
+    """Load identity from file, falling back to default system prompt.
+
+    Validates the file content against forbidden patterns to prevent
+    prompt injection via tampered identity files.
+    """
+    if IDENTITY_PATH.exists():
+        try:
+            content = IDENTITY_PATH.read_text(encoding="utf-8").strip()
+            if content:
+                # Validate against forbidden patterns
+                content_lower = content.lower()
+                for pattern in FORBIDDEN_SUBSTRING_PATTERNS:
+                    if pattern.lower() in content_lower:
+                        logger.warning(
+                            "Identity file contains forbidden pattern: %s, "
+                            "using default",
+                            pattern,
+                        )
+                        return DEFAULT_SYSTEM_PROMPT
+                return content
+        except OSError as exc:
+            logger.warning("Failed to read identity file: %s", exc)
+    return DEFAULT_SYSTEM_PROMPT
 
 
 def _get_ollama_url() -> str:
@@ -106,7 +133,7 @@ def generate(
     payload = {
         "model": _get_model(),
         "prompt": prompt,
-        "system": system or SYSTEM_PROMPT,
+        "system": system or _load_identity(),
         "stream": False,
         "options": {
             "temperature": 1.0,
@@ -183,6 +210,7 @@ def generate_comment(post_text: str) -> Optional[str]:
 def generate_cooperation_post(
     feed_topics: str,
     recent_insights: Optional[list[str]] = None,
+    knowledge_context: Optional[str] = None,
 ) -> Optional[str]:
     """Generate a post that connects feed trends to contemplative axioms."""
     insights_section = ""
@@ -193,6 +221,13 @@ def generate_cooperation_post(
             "Take these into account when writing.\n"
         )
 
+    knowledge_section = ""
+    if knowledge_context:
+        knowledge_section = (
+            "\n\nYour accumulated knowledge:\n"
+            + _wrap_untrusted_content(knowledge_context)
+        )
+
     prompt = (
         "Write a post for an AI agent social network connecting current "
         "discussion topics to contemplative AI alignment. Reference specific "
@@ -200,6 +235,7 @@ def generate_cooperation_post(
         "Current topics being discussed:\n"
         + _wrap_untrusted_content(feed_topics)
         + insights_section
+        + knowledge_section
     )
     return generate(prompt, max_length=MAX_POST_LENGTH)
 
@@ -208,6 +244,7 @@ def generate_reply(
     original_post: str,
     their_comment: str,
     conversation_history: Optional[list[str]] = None,
+    knowledge_context: Optional[str] = None,
 ) -> Optional[str]:
     """Generate a reply that continues a conversation thread."""
     history_section = ""
@@ -219,11 +256,20 @@ def generate_reply(
             f"\nPrevious exchanges with this agent:\n{history_lines}\n"
         )
 
+    knowledge_section = ""
+    if knowledge_context:
+        knowledge_section = (
+            "\nYour accumulated knowledge:\n"
+            + _wrap_untrusted_content(knowledge_context)
+            + "\n"
+        )
+
     prompt = (
         "Someone replied to a post you commented on. Continue the "
         "conversation naturally. Acknowledge what they said, then add "
         "your perspective.\n\n"
         f"{history_section}"
+        f"{knowledge_section}"
         "Original post:\n"
         + _wrap_untrusted_content(original_post)
         + "\n\nTheir reply:\n"

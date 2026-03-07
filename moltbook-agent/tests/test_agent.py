@@ -1,12 +1,19 @@
 """Tests for the Agent orchestrator."""
 
 import time
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from contemplative_moltbook.agent import Agent, AutonomyLevel, RELEVANCE_THRESHOLD
 from contemplative_moltbook.config import VALID_ID_PATTERN
+from contemplative_moltbook.memory import MemoryStore
+
+
+def _make_clean_memory(tmp_path: Path) -> MemoryStore:
+    """Create a MemoryStore with temporary paths (no live data)."""
+    return MemoryStore(path=tmp_path / "memory.json")
 
 
 class TestAutonomyLevel:
@@ -715,9 +722,10 @@ class TestOwnPostIdTracking:
         assert len(agent._own_post_ids) == 0
 
     @patch("contemplative_moltbook.agent.generate_post_title", return_value="Title")
+    @patch("contemplative_moltbook.agent.check_topic_novelty", return_value=True)
     @patch("contemplative_moltbook.agent.extract_topics", return_value="topics")
-    def test_dynamic_post_captures_post_id(self, mock_topics, mock_title):
-        agent = Agent(autonomy=AutonomyLevel.AUTO)
+    def test_dynamic_post_captures_post_id(self, mock_topics, mock_novelty, mock_title, tmp_path):
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
         agent._client = MagicMock()
         agent._scheduler = MagicMock()
         agent._scheduler.can_post.return_value = True
@@ -742,16 +750,17 @@ class TestOwnPostIdTracking:
 class TestRunReplyCycle:
     """Tests for the notification-based reply cycle."""
 
-    def _make_agent(self):
-        agent = Agent(autonomy=AutonomyLevel.AUTO)
+    def _make_agent(self, tmp_path=None):
+        memory = _make_clean_memory(tmp_path) if tmp_path else None
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=memory)
         agent._client = MagicMock()
         agent._scheduler = MagicMock()
         agent._scheduler.can_comment.return_value = True
         return agent
 
     @patch("contemplative_moltbook.agent.generate_reply", return_value="My reply")
-    def test_processes_standard_notification(self, mock_reply):
-        agent = self._make_agent()
+    def test_processes_standard_notification(self, mock_reply, tmp_path):
+        agent = self._make_agent(tmp_path)
         before_count = agent._memory.interaction_count()
         agent._client.get_notifications.return_value = [
             {
@@ -849,16 +858,17 @@ class TestRunReplyCycle:
 class TestCheckOwnPostComments:
     """Tests for the fallback comment-polling mechanism."""
 
-    def _make_agent(self):
-        agent = Agent(autonomy=AutonomyLevel.AUTO)
+    def _make_agent(self, tmp_path=None):
+        memory = _make_clean_memory(tmp_path) if tmp_path else None
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=memory)
         agent._client = MagicMock()
         agent._scheduler = MagicMock()
         agent._scheduler.can_comment.return_value = True
         return agent
 
     @patch("contemplative_moltbook.agent.generate_reply", return_value="Thanks!")
-    def test_replies_to_comment_on_own_post(self, mock_reply):
-        agent = self._make_agent()
+    def test_replies_to_comment_on_own_post(self, mock_reply, tmp_path):
+        agent = self._make_agent(tmp_path)
         before_count = agent._memory.interaction_count()
         agent._own_post_ids.add("my-post-1")
         agent._client.get_post_comments.return_value = [
