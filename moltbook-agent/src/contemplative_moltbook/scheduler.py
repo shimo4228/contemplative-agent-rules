@@ -60,6 +60,8 @@ class Scheduler:
             self._save_state()
 
     def can_post(self) -> bool:
+        # Re-read from disk to detect posts by other sessions
+        self._load_state()
         now = time.time()
         elapsed = now - self._last_post_time
         return elapsed >= self._limits.post_interval_seconds

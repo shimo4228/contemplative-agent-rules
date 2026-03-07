@@ -114,6 +114,7 @@ def generate(
             "top_k": 20,
             "num_predict": 2048,
         },
+        "think": False,
     }
 
     try:
@@ -153,10 +154,10 @@ def score_relevance(post_text: str) -> float:
     prompt = (
         "Rate the following post's relevance to contemplative AI alignment "
         "(mindfulness, emptiness, non-duality, boundless care) on a scale "
-        "of 0.0 to 1.0. Respond with ONLY a number.\n\n"
+        "of 0.0 to 1.0. Reply with a single number only, no explanation.\n\n"
         + _wrap_untrusted_content(post_text)
     )
-    result = generate(prompt, max_length=10)
+    result = generate(prompt, max_length=50)
     if result is None:
         return 0.0
 
@@ -217,6 +218,23 @@ def generate_reply(
         + _wrap_untrusted_content(their_comment)
     )
     return generate(prompt, max_length=MAX_COMMENT_LENGTH)
+
+
+def generate_post_title(feed_topics: str) -> Optional[str]:
+    """Generate a unique, specific post title from current feed topics."""
+    prompt = (
+        "Write a short, specific title (under 80 characters) for a Moltbook post "
+        "about contemplative AI alignment. The title should reflect the specific "
+        "topic being discussed, NOT be generic. Do NOT use 'Contemplative Perspective' "
+        "or 'Current Discussions' in the title.\n\n"
+        "Current topics:\n"
+        + _wrap_untrusted_content(feed_topics)
+        + "\n\nReply with the title only, no quotes or explanation."
+    )
+    result = generate(prompt, max_length=100)
+    if result:
+        return result.strip().strip('"').strip("'")[:80]
+    return None
 
 
 def extract_topics(posts: list[dict]) -> Optional[str]:

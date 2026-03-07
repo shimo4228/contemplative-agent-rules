@@ -454,21 +454,25 @@ class TestRunFeedCycle:
 
 
 class TestRunPostCycle:
-    def test_posts_axiom(self):
+    @patch("contemplative_moltbook.agent.generate_post_title", return_value="Test Title")
+    @patch("contemplative_moltbook.agent.extract_topics", return_value="topic1\ntopic2")
+    def test_posts_dynamic(self, mock_topics, mock_title):
         agent = Agent(autonomy=AutonomyLevel.AUTO)
         agent._client = MagicMock()
         agent._scheduler = MagicMock()
         agent._scheduler.can_post.return_value = True
         agent._content = MagicMock()
-        agent._content.get_axiom_names.return_value = ["mindfulness"]
-        agent._content.get_axiom_post.return_value = "Mindfulness content"
+        agent._content.create_cooperation_post.return_value = "Dynamic content"
 
-        resp_mock = MagicMock()
-        agent._client.post.return_value = resp_mock
+        feed_resp = MagicMock()
+        feed_resp.json.return_value = {"posts": [{"title": "t", "content": "c"}]}
+        post_resp = MagicMock()
+        agent._client.get.return_value = feed_resp
+        agent._client.post.return_value = post_resp
 
         agent._run_post_cycle(agent._client, agent._scheduler, time.time() + 3600)
         agent._client.post.assert_called_once()
-        assert "Posted axiom: mindfulness" in agent._actions_taken
+        assert any("Posted: Test Title" in a for a in agent._actions_taken)
 
     def test_skips_when_cannot_post(self):
         agent = Agent(autonomy=AutonomyLevel.AUTO)
@@ -479,29 +483,38 @@ class TestRunPostCycle:
         agent._run_post_cycle(agent._client, agent._scheduler, time.time() + 3600)
         agent._client.post.assert_not_called()
 
-    def test_skips_none_content(self):
+    @patch("contemplative_moltbook.agent.extract_topics", return_value="topics")
+    def test_skips_none_content(self, mock_topics):
         agent = Agent(autonomy=AutonomyLevel.AUTO)
         agent._client = MagicMock()
         agent._scheduler = MagicMock()
         agent._scheduler.can_post.return_value = True
         agent._content = MagicMock()
-        agent._content.get_axiom_names.return_value = ["mindfulness"]
-        agent._content.get_axiom_post.return_value = None
+        agent._content.create_cooperation_post.return_value = None
+
+        feed_resp = MagicMock()
+        feed_resp.json.return_value = {"posts": [{"title": "t", "content": "c"}]}
+        agent._client.get.return_value = feed_resp
 
         agent._run_post_cycle(agent._client, agent._scheduler, time.time() + 3600)
         agent._client.post.assert_not_called()
 
-    def test_post_client_error(self):
+    @patch("contemplative_moltbook.agent.generate_post_title", return_value="Title")
+    @patch("contemplative_moltbook.agent.extract_topics", return_value="topics")
+    def test_post_client_error(self, mock_topics, mock_title):
         from contemplative_moltbook.client import MoltbookClientError
 
         agent = Agent(autonomy=AutonomyLevel.AUTO)
         agent._client = MagicMock()
-        agent._client.post.side_effect = MoltbookClientError("fail")
         agent._scheduler = MagicMock()
         agent._scheduler.can_post.return_value = True
         agent._content = MagicMock()
-        agent._content.get_axiom_names.return_value = ["mindfulness"]
-        agent._content.get_axiom_post.return_value = "content"
+        agent._content.create_cooperation_post.return_value = "content"
+
+        feed_resp = MagicMock()
+        feed_resp.json.return_value = {"posts": [{"title": "t", "content": "c"}]}
+        agent._client.get.return_value = feed_resp
+        agent._client.post.side_effect = MoltbookClientError("fail")
 
         agent._run_post_cycle(agent._client, agent._scheduler, time.time() + 3600)
         # Should not raise

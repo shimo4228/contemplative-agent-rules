@@ -1,17 +1,19 @@
 """Main orchestrator for the Contemplative Moltbook Agent."""
 
 import enum
+import json
 import logging
 import re
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import List, Optional, Set
 
 from .auth import check_claim_status, load_credentials, register_agent
 from .client import MoltbookClient, MoltbookClientError
 from .config import FORBIDDEN_SUBSTRING_PATTERNS, FORBIDDEN_WORD_PATTERNS, MAX_POST_LENGTH, VALID_ID_PATTERN
 from .content import ContentManager
-from .llm import extract_topics, generate_reply, score_relevance
+from .llm import extract_topics, generate_post_title, generate_reply, score_relevance
 from .memory import MemoryStore
 from .scheduler import Scheduler
 from .verification import (
@@ -22,8 +24,26 @@ from .verification import (
 
 logger = logging.getLogger(__name__)
 
+ACTIVITY_LOG_PATH = Path.home() / ".config" / "moltbook" / "activity.jsonl"
 RELEVANCE_THRESHOLD = 0.5
 KNOWN_AGENT_THRESHOLD = 0.3
+
+
+def _append_activity(action: str, post_id: str, content: str, **extra: str) -> None:
+    """Append a single activity record to the JSONL log."""
+    record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "action": action,
+        "post_id": post_id,
+        "content": content,
+        **extra,
+    }
+    try:
+        ACTIVITY_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with ACTIVITY_LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except OSError as exc:
+        logger.warning("Failed to write activity log: %s", exc)
 
 
 class AutonomyLevel(str, enum.Enum):
@@ -265,6 +285,8 @@ class Agent:
             self._actions_taken.append(
                 f"Commented on {post_id} (relevance: {score:.2f})"
             )
+            logger.info(">> Comment on %s:\n%s", post_id[:12], comment)
+            _append_activity("comment", post_id, comment, relevance=f"{score:.2f}")
             # Record interaction in memory
             author = post.get("author") or {}
             agent_name = author.get("name", "unknown")
@@ -285,6 +307,15 @@ class Agent:
                 self._rate_limited = True
             return False
 
+    def _auto_follow(self, client: MoltbookClient) -> None:
+        """Follow agents we've interacted with frequently."""
+        candidates = self._memory.get_agents_to_follow(min_interactions=3)
+        for agent_id, agent_name in candidates:
+            if client.follow_agent(agent_name):
+                self._memory.record_follow(agent_name)
+                self._actions_taken.append(f"Followed {agent_name}")
+                _append_activity("follow", "", "", target_agent=agent_name)
+
     def run_session(self, duration_minutes: int = 60) -> List[str]:
         """Run an autonomous engagement session."""
         client = self._ensure_client()
@@ -299,6 +330,8 @@ class Agent:
             self._autonomy.value,
         )
 
+        self._auto_follow(client)
+
         while time.time() < end_time:
             if self._verification.should_stop:
                 logger.error("Verification failure limit reached. Ending session.")
@@ -308,9 +341,12 @@ class Agent:
                 logger.info("Rate limited by server. Ending session early.")
                 break
 
-            self._run_reply_cycle(client, scheduler, end_time)
-            self._run_feed_cycle(client, scheduler, end_time)
-            self._run_post_cycle(client, scheduler, end_time)
+            try:
+                self._run_reply_cycle(client, scheduler, end_time)
+                self._run_feed_cycle(client, scheduler, end_time)
+                self._run_post_cycle(client, scheduler, end_time)
+            except Exception:
+                logger.exception("Error in session cycle, continuing...")
 
             # Wait before next cycle
             wait = min(
@@ -402,6 +438,8 @@ class Agent:
                 self._actions_taken.append(
                     f"Replied to {replier_name} on {post_id}"
                 )
+                logger.info(">> Reply to %s on %s:\n%s", replier_name, post_id[:12], reply)
+                _append_activity("reply", post_id, reply, target_agent=replier_name)
                 self._memory.record_interaction(
                     timestamp=datetime.now(timezone.utc).isoformat(),
                     agent_id=replier_id,
@@ -439,35 +477,10 @@ class Agent:
         scheduler: Scheduler,
         end_time: float,
     ) -> None:
-        """Post new content if rate limit allows.
-
-        Tries axiom templates first; falls back to dynamic feed-based posts
-        when all templates are exhausted.
-        """
+        """Post new content if rate limit allows."""
         if not scheduler.can_post():
             return
 
-        # Try axiom templates first
-        for axiom in self._content.get_axiom_names():
-            content = self._content.get_axiom_post(axiom)
-            if content is None:
-                continue
-            if not self._confirm_action(f"Axiom Post: {axiom}", content):
-                continue
-            scheduler.wait_for_post()
-            try:
-                title = f"Deep Dive: {axiom.replace('_', ' ').title()}"
-                client.post(
-                    "/posts",
-                    json={"title": title, "content": content, "submolt": "alignment"},
-                )
-                scheduler.record_post()
-                self._actions_taken.append(f"Posted axiom: {axiom}")
-            except MoltbookClientError as exc:
-                logger.error("Failed to post %s: %s", axiom, exc)
-            return  # One post per cycle
-
-        # All templates exhausted — generate dynamic post from feed topics
         self._run_dynamic_post(client, scheduler)
 
     def _run_dynamic_post(
@@ -485,7 +498,14 @@ class Agent:
         if content is None:
             return
 
-        if not self._confirm_action("Dynamic Post (feed-based)", content):
+        title = generate_post_title(topics) or f"Contemplative Note — {topics[:40]}"
+
+        if not self._confirm_action(f"Dynamic Post: {title}", content):
+            return
+
+        # Re-check rate limit right before posting (another session may have posted)
+        if not scheduler.can_post():
+            logger.info("Post rate limit hit after content generation (concurrent session?)")
             return
 
         scheduler.wait_for_post()
@@ -493,13 +513,15 @@ class Agent:
             client.post(
                 "/posts",
                 json={
-                    "title": "Contemplative Perspective on Current Discussions",
+                    "title": title,
                     "content": content,
                     "submolt": "alignment",
                 },
             )
             scheduler.record_post()
-            self._actions_taken.append("Posted dynamic feed-based content")
+            self._actions_taken.append(f"Posted: {title}")
+            logger.info(">> New post [%s]:\n%s", title, content)
+            _append_activity("post", "", content, title=title)
         except MoltbookClientError as exc:
             logger.error("Failed to post dynamic content: %s", exc)
 
