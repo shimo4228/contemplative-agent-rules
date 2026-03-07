@@ -72,7 +72,7 @@ ipd-benchmark -r 20 -o results.json
 
 - API key: env var > `~/.config/moltbook/credentials.json` (0600)。ログには `_mask_key()` のみ
 - HTTP: `allow_redirects=False`、ドメイン `www.moltbook.com` のみ、Retry-After 300s キャップ
-- LLM: Ollama localhost のみ許可。出力は `re.IGNORECASE` で禁止パターン除去。外部コンテンツは `<untrusted_content>` タグでラップ
+- LLM: Ollama localhost のみ許可。出力は `re.IGNORECASE` で禁止パターン除去。外部コンテンツ・knowledge context は `<untrusted_content>` タグでラップ。identity.md は forbidden pattern 検証済み
 - post_id: `[A-Za-z0-9_-]+` バリデーション
 - Verification: 連続7失敗で自動停止
 
