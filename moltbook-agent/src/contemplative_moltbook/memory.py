@@ -187,13 +187,6 @@ class KnowledgeStore:
       ## Learned Patterns
     """
 
-    SECTIONS = (
-        "Agent Relationships",
-        "Recent Post Topics",
-        "Insights",
-        "Learned Patterns",
-    )
-
     def __init__(self, path: Optional[Path] = None) -> None:
         self._path = path or KNOWLEDGE_PATH
         self._agents: Dict[str, str] = {}  # agent_id -> name

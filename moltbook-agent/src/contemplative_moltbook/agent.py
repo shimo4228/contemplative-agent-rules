@@ -350,7 +350,7 @@ class Agent:
     def _auto_follow(self, client: MoltbookClient) -> None:
         """Follow agents we've interacted with frequently."""
         candidates = self._memory.get_agents_to_follow(min_interactions=3)
-        for agent_id, agent_name in candidates:
+        for _agent_id, agent_name in candidates:
             if client.follow_agent(agent_name):
                 self._memory.record_follow(agent_name)
                 self._actions_taken.append(f"Followed {agent_name}")
@@ -371,7 +371,7 @@ class Agent:
         original_sigterm = signal.getsignal(signal.SIGTERM)
         original_sigint = signal.getsignal(signal.SIGINT)
 
-        def _shutdown_handler(signum: int, frame: object) -> None:
+        def _shutdown_handler(signum: int, _frame: object) -> None:
             logger.info("Shutdown signal received (signal %d). Finishing current cycle...", signum)
             self._shutdown_requested = True
 
@@ -684,8 +684,8 @@ class Agent:
 
     def _run_feed_cycle(
         self,
-        client: MoltbookClient,
-        scheduler: Scheduler,
+        _client: MoltbookClient,
+        _scheduler: Scheduler,
         end_time: float,
     ) -> None:
         """Fetch and engage with posts from the feed."""
@@ -703,7 +703,7 @@ class Agent:
         self,
         client: MoltbookClient,
         scheduler: Scheduler,
-        end_time: float,
+        _end_time: float,
     ) -> None:
         """Post new content if rate limit allows."""
         if not scheduler.can_post():

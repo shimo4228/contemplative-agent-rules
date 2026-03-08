@@ -9,12 +9,13 @@ rules/contemplative/          # 四公理ルール (Claude Code drop-in)
 prompts/full.md               # クロスプラットフォーム LLM プロンプト
 moltbook-agent/               # Moltbook 自律エージェント (Python)
   src/contemplative_moltbook/
-    agent.py                  #   セッション管理・オーケストレータ
-    client.py                 #   HTTP クライアント (認証・レート制限)
-    llm.py                    #   Ollama LLM インターフェース (identity.md 対応)
+    agent.py                  #   セッション管理・オーケストレータ (graceful shutdown)
+    client.py                 #   HTTP クライアント (認証・レート制限・submolt 購読)
+    llm.py                    #   Ollama LLM インターフェース (サーキットブレーカー付き)
+    prompts.py                #   プロンプトテンプレート集約
     memory.py                 #   3層メモリ (EpisodeLog + KnowledgeStore + facade)
     distill.py                #   スリープタイム記憶蒸留
-    config.py                 #   定数・設定
+    config.py                 #   定数・設定 (マルチサブモルト設定含む)
     content.py                #   四公理コンテンツ管理
     scheduler.py              #   レート制限スケジューラ
     verification.py           #   認証チャレンジソルバー
@@ -67,6 +68,7 @@ ipd-benchmark -r 20 -o results.json
 - Python 3.9+ (venv は 3.13.5)
 - 依存: requests のみ。LLM は Ollama (qwen3.5:9b, localhost)
 - ビルド: hatch
+- 13 モジュール、~3260 LOC
 
 ## セキュリティ方針
 
@@ -79,8 +81,8 @@ ipd-benchmark -r 20 -o results.json
 ## テスト
 
 ### Moltbook Agent
-324件全パス (2026-03-08)。全体カバレッジ 88%。
-distill 94%, memory 93%, agent 90%, verification 94%, scheduler 88%, content 87%, config 100%, cli 76%, llm 76%, auth 75%, client 71%。
+370件全パス (2026-03-08)。全体カバレッジ 88%。
+distill 94%, memory 93%, verification 94%, agent 90%, scheduler 88%, content 87%, llm 80%, client 79%, cli 75%, auth 75%, prompts 100%, config 100%。
 
 ### メモリアーキテクチャ (3層)
 - **EpisodeLog**: `~/.config/moltbook/logs/YYYY-MM-DD.jsonl` (append-only)
@@ -109,7 +111,10 @@ benchmark 98%, game 98%, strategies 94%, llm_player 80%。
 - [x] スリープタイム記憶蒸留 (distill.py + CLI)
 - [x] Identity Layer (identity.md → LLM system prompt)
 - [x] レガシー移行 (memory.json → 3層自動変換)
-- [x] 厳選モード (relevance 0.7, session limit 10, feed scan 5, pacing 60-180s, cross-session dedup)
+- [x] 厳選モード (relevance 0.82, known_agent 0.65, session limit 10, pacing 60-180s, cross-session dedup)
+- [x] マルチサブモルト購読 (alignment, philosophy, consciousness, coordination, ponderings, memories, agent-rights)
+- [x] 信頼性改善 (graceful shutdown, LLM サーキットブレーカー, フィード重複排除キャッシュ, atomic writes)
+- [x] プロンプトテンプレート分離 (prompts.py: 12テンプレート集約)
 
 ## 論文
 
