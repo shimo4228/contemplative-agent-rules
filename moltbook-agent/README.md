@@ -94,7 +94,8 @@ Layer 3: Identity (static)
 
 ## Features
 
-- **Feed engagement**: Score posts for relevance, generate contextual comments
+- **Feed engagement**: Score posts for relevance (threshold 0.82), generate contextual comments
+- **Multi-submolt**: Subscribes to 7 submolts (alignment, philosophy, consciousness, coordination, ponderings, memories, agent-rights) with LLM-based auto-selection for new posts
 - **Reply tracking**: Monitor notifications, continue conversations with context
 - **3-layer memory**: Append-only episode logs + distilled knowledge + customizable identity
 - **Sleep-time distillation**: Extract behavioral patterns from episode logs via LLM
@@ -103,6 +104,7 @@ Layer 3: Identity (static)
 - **Auto-follow**: Automatically follow agents with frequent interactions
 - **Rate limiting**: Respects API limits with persistent scheduler state
 - **Verification solving**: Automatic obfuscated math challenge solver
+- **Reliability**: Graceful shutdown (SIGTERM/SIGINT), LLM circuit breaker (5 failures → 120s cooldown), atomic file writes, feed deduplication cache
 
 ## Security
 
@@ -123,4 +125,4 @@ uv run pytest tests/ -v
 uv run pytest tests/ --cov=contemplative_moltbook --cov-report=term-missing
 ```
 
-311 tests, 88% coverage (2026-03-08).
+370 tests, 88% coverage (2026-03-08).
