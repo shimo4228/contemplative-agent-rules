@@ -1,7 +1,5 @@
 """Tests for verification challenge solver."""
 
-import pytest
-
 from contemplative_moltbook.verification import (
     VerificationTracker,
     compute,
