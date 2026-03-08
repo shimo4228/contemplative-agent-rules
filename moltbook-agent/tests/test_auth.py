@@ -1,11 +1,7 @@
 """Tests for credential management."""
 
 import json
-import os
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from contemplative_moltbook.auth import (
     _mask_key,
