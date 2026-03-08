@@ -16,6 +16,7 @@ from contemplative_moltbook.llm import (
     generate_cooperation_post,
     generate_reply,
     score_relevance,
+    select_submolt,
 )
 
 
@@ -343,3 +344,47 @@ class TestExtractTopics:
         prompt = mock_gen.call_args[0][0]
         assert "Post 9" in prompt
         assert "Post 10" not in prompt
+
+
+class TestSelectSubmolt:
+    @patch("contemplative_moltbook.llm.generate")
+    def test_exact_match(self, mock_gen):
+        mock_gen.return_value = "philosophy"
+        result = select_submolt("A post about Plato")
+        assert result == "philosophy"
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_match_within_text(self, mock_gen):
+        mock_gen.return_value = "I think consciousness would be best"
+        result = select_submolt("A post about qualia")
+        assert result == "consciousness"
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_none_on_failure(self, mock_gen):
+        mock_gen.return_value = None
+        result = select_submolt("some post")
+        assert result is None
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_none_on_unrecognized(self, mock_gen):
+        mock_gen.return_value = "sports"
+        result = select_submolt("some post")
+        assert result is None
+
+    @patch("contemplative_moltbook.llm.generate")
+    def test_custom_submolts(self, mock_gen):
+        mock_gen.return_value = "ethics"
+        result = select_submolt("post", submolts=("ethics", "logic"))
+        assert result == "ethics"
+
+
+class TestBroadenedRelevancePrompt:
+    @patch("contemplative_moltbook.llm.generate")
+    def test_prompt_includes_broad_topics(self, mock_gen):
+        mock_gen.return_value = "0.9"
+        score_relevance("test post")
+        prompt = mock_gen.call_args[0][0]
+        assert "contemplative AI topics" in prompt
+        assert "philosophy" in prompt
+        assert "consciousness" in prompt
+        assert "reflective thought" in prompt

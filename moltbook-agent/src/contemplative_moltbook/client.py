@@ -15,6 +15,7 @@ from .config import (
     MAX_RETRY_ON_429,
     READ_TIMEOUT,
     VALID_ID_PATTERN,
+    VALID_SUBMOLT_PATTERN,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,6 +136,41 @@ class MoltbookClient:
 
     def post(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("POST", path, **kwargs)
+
+    def delete(self, path: str, **kwargs: Any) -> requests.Response:
+        return self._request("DELETE", path, **kwargs)
+
+    def subscribe_submolt(self, name: str) -> bool:
+        """Subscribe to a submolt. Returns True on success or already subscribed."""
+        if not VALID_SUBMOLT_PATTERN.match(name):
+            logger.warning("Invalid submolt name: %s", name[:50])
+            return False
+        try:
+            self.post(f"/submolts/{name}/subscribe")
+            logger.info("Subscribed to submolt: %s", name)
+            return True
+        except MoltbookClientError as exc:
+            if exc.status_code == 409:
+                logger.debug("Already subscribed to %s", name)
+                return True
+            if exc.status_code == 400:
+                logger.warning("Subscribe %s returned 400 (may be already subscribed)", name)
+                return True
+            logger.warning("Failed to subscribe to %s: %s", name, exc)
+            return False
+
+    def unsubscribe_submolt(self, name: str) -> bool:
+        """Unsubscribe from a submolt. Returns True on success."""
+        if not VALID_SUBMOLT_PATTERN.match(name):
+            logger.warning("Invalid submolt name: %s", name[:50])
+            return False
+        try:
+            self.delete(f"/submolts/{name}/subscribe")
+            logger.info("Unsubscribed from submolt: %s", name)
+            return True
+        except MoltbookClientError as exc:
+            logger.warning("Failed to unsubscribe from %s: %s", name, exc)
+            return False
 
     def get_notifications(
         self, since: Optional[str] = None

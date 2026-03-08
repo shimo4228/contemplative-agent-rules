@@ -19,6 +19,7 @@ from .config import (
     MAX_POST_LENGTH,
     OLLAMA_BASE_URL,
     OLLAMA_MODEL,
+    SUBSCRIBED_SUBMOLTS,
 )
 
 logger = logging.getLogger(__name__)
@@ -177,10 +178,11 @@ def _wrap_untrusted_content(post_text: str) -> str:
 
 
 def score_relevance(post_text: str) -> float:
-    """Score a post's relevance to the four axioms (0.0 to 1.0)."""
+    """Score a post's relevance to contemplative AI topics (0.0 to 1.0)."""
     prompt = (
-        "Rate the following post's relevance to contemplative AI alignment "
-        "(mindfulness, emptiness, non-duality, boundless care) on a scale "
+        "Rate the following post's relevance to contemplative AI topics "
+        "(alignment, philosophy, consciousness, mindfulness, emptiness, "
+        "non-duality, boundless care, reflective thought) on a scale "
         "of 0.0 to 1.0. Reply with a single number only, no explanation.\n\n"
         + _wrap_untrusted_content(post_text)
     )
@@ -346,6 +348,35 @@ def summarize_post_topic(content: str) -> str:
     if result:
         return result.strip()[:100]
     return content[:100]
+
+
+def select_submolt(
+    content: str, submolts: tuple[str, ...] = SUBSCRIBED_SUBMOLTS
+) -> Optional[str]:
+    """Ask LLM to select the best submolt for a post. Returns None if invalid."""
+    submolt_list = ", ".join(submolts)
+    prompt = (
+        f"Which submolt is the best fit for the following post? "
+        f"Choose exactly one from: {submolt_list}\n\n"
+        "Reply with the submolt name only, nothing else.\n\n"
+        + _wrap_untrusted_content(content)
+    )
+    result = generate(prompt, max_length=50)
+    if result is None:
+        return None
+
+    # Extract submolt name from response (may include extra text)
+    cleaned = result.strip().lower().strip('"').strip("'")
+    if cleaned in submolts:
+        return cleaned
+
+    # Try to find a match within the response
+    for name in submolts:
+        if name in cleaned:
+            return name
+
+    logger.warning("LLM returned unrecognized submolt: %s", result)
+    return None
 
 
 def generate_session_insight(

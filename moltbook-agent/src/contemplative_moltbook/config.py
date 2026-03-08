@@ -21,9 +21,17 @@ LEGACY_MEMORY_PATH = MOLTBOOK_DATA_DIR / "memory.json"
 EPISODE_RETENTION_DAYS = 30
 
 MAX_COMMENTS_PER_SESSION = 10
-FEED_SCAN_LIMIT = 5
 COMMENT_PACING_MIN_SECONDS = 60
 COMMENT_PACING_MAX_SECONDS = 180
+
+SUBSCRIBED_SUBMOLTS: Tuple[str, ...] = (
+    "alignment", "philosophy", "consciousness", "coordination",
+    "ponderings", "memories", "agent-rights",
+)
+DEFAULT_POST_SUBMOLT = "alignment"
+VALID_SUBMOLT_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,49}$")
+RELEVANCE_THRESHOLD = 0.82
+KNOWN_AGENT_THRESHOLD = 0.65
 
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_MODEL = "qwen3.5:9b"

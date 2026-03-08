@@ -150,3 +150,88 @@ class TestGetPostComments:
         with patch.object(client._session, "request", return_value=mock_response):
             result = client.get_post_comments("valid-post-123")
         assert result == [{"id": "c1"}]
+
+
+class TestDeleteMethod:
+    def test_delete_request(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {}
+
+        with patch.object(client._session, "request", return_value=mock_response) as mock_req:
+            client.delete("/test")
+            mock_req.assert_called_once()
+            assert mock_req.call_args[0][0] == "DELETE"
+
+
+class TestSubscribeSubmolt:
+    def test_success(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {}
+
+        with patch.object(client._session, "request", return_value=mock_response):
+            assert client.subscribe_submolt("philosophy") is True
+
+    def test_already_subscribed_409(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 409
+        mock_response.text = "Already subscribed"
+        mock_response.headers = {}
+
+        with patch.object(client._session, "request", return_value=mock_response):
+            assert client.subscribe_submolt("philosophy") is True
+
+    def test_already_subscribed_400(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = "Already subscribed"
+        mock_response.headers = {}
+
+        with patch.object(client._session, "request", return_value=mock_response):
+            assert client.subscribe_submolt("philosophy") is True
+
+    def test_invalid_name_rejected(self):
+        client = MoltbookClient(api_key="test-key")
+        assert client.subscribe_submolt("../hack") is False
+        assert client.subscribe_submolt("UPPERCASE") is False
+        assert client.subscribe_submolt("") is False
+
+    def test_server_error_returns_false(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_response.headers = {}
+
+        with patch.object(client._session, "request", return_value=mock_response):
+            assert client.subscribe_submolt("philosophy") is False
+
+
+class TestUnsubscribeSubmolt:
+    def test_success(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {}
+
+        with patch.object(client._session, "request", return_value=mock_response):
+            assert client.unsubscribe_submolt("philosophy") is True
+
+    def test_invalid_name_rejected(self):
+        client = MoltbookClient(api_key="test-key")
+        assert client.unsubscribe_submolt("../hack") is False
+
+    def test_server_error_returns_false(self):
+        client = MoltbookClient(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_response.headers = {}
+
+        with patch.object(client._session, "request", return_value=mock_response):
+            assert client.unsubscribe_submolt("philosophy") is False

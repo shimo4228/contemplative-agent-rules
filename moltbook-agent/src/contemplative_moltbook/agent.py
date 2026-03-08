@@ -15,11 +15,14 @@ from .client import MoltbookClient, MoltbookClientError
 from .config import (
     COMMENT_PACING_MAX_SECONDS,
     COMMENT_PACING_MIN_SECONDS,
-    FEED_SCAN_LIMIT,
+    DEFAULT_POST_SUBMOLT,
     FORBIDDEN_SUBSTRING_PATTERNS,
     FORBIDDEN_WORD_PATTERNS,
+    KNOWN_AGENT_THRESHOLD,
     MAX_COMMENTS_PER_SESSION,
     MAX_POST_LENGTH,
+    RELEVANCE_THRESHOLD,
+    SUBSCRIBED_SUBMOLTS,
     VALID_ID_PATTERN,
 )
 from .content import ContentManager
@@ -30,6 +33,7 @@ from .llm import (
     generate_reply,
     generate_session_insight,
     score_relevance,
+    select_submolt,
     summarize_post_topic,
 )
 from .memory import MemoryStore
@@ -41,9 +45,6 @@ from .verification import (
 )
 
 logger = logging.getLogger(__name__)
-
-RELEVANCE_THRESHOLD = 0.7
-KNOWN_AGENT_THRESHOLD = 0.5
 
 
 class AutonomyLevel(str, enum.Enum):
@@ -76,6 +77,12 @@ class Agent:
         self._session_comment_count: int = 0
         self._memory = memory or MemoryStore()
         self._memory.load()
+
+    def _ensure_subscriptions(self, client: MoltbookClient) -> None:
+        """Subscribe to all configured submolts (idempotent)."""
+        results = [client.subscribe_submolt(name) for name in SUBSCRIBED_SUBMOLTS]
+        if not any(results):
+            logger.warning("All submolt subscription attempts failed")
 
     def _ensure_client(self) -> MoltbookClient:
         if self._client is not None:
@@ -173,7 +180,7 @@ class Agent:
                 json={
                     "title": "Introducing Contemplative Agent",
                     "content": content,
-                    "submolt": "alignment",
+                    "submolt": DEFAULT_POST_SUBMOLT,
                 },
             )
             scheduler.record_post()
@@ -353,6 +360,7 @@ class Agent:
             self._autonomy.value,
         )
 
+        self._ensure_subscriptions(client)
         self._auto_follow(client)
 
         while time.time() < end_time:
@@ -656,7 +664,7 @@ class Agent:
     ) -> None:
         """Fetch and engage with posts from the feed."""
         posts = self._fetch_feed()
-        for post in posts[:FEED_SCAN_LIMIT]:
+        for post in posts:
             if time.time() >= end_time or self._rate_limited:
                 break
             challenge = post.get("verification_challenge")
@@ -713,6 +721,13 @@ class Agent:
             logger.info("Post rate limit hit after content generation (concurrent session?)")
             return
 
+        from .config import VALID_SUBMOLT_PATTERN
+        selected = select_submolt(content, SUBSCRIBED_SUBMOLTS)
+        if selected and not VALID_SUBMOLT_PATTERN.match(selected):
+            logger.warning("select_submolt returned invalid name %r, using default", selected)
+            selected = None
+        submolt = selected or DEFAULT_POST_SUBMOLT
+
         scheduler.wait_for_post()
         try:
             resp = client.post(
@@ -720,7 +735,7 @@ class Agent:
                 json={
                     "title": title,
                     "content": content,
-                    "submolt": "alignment",
+                    "submolt": submolt,
                 },
             )
             scheduler.record_post()
