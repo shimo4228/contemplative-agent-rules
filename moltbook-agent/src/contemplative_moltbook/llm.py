@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -21,42 +22,71 @@ from .config import (
     OLLAMA_MODEL,
     SUBSCRIBED_SUBMOLTS,
 )
+from .prompts import (
+    COMMENT_PROMPT,
+    COOPERATION_POST_PROMPT,
+    POST_TITLE_PROMPT,
+    RELEVANCE_PROMPT,
+    REPLY_PROMPT,
+    SESSION_INSIGHT_PROMPT,
+    SUBMOLT_SELECTION_PROMPT,
+    SYSTEM_PROMPT,
+    TOPIC_EXTRACTION_PROMPT,
+    TOPIC_NOVELTY_PROMPT,
+    TOPIC_SUMMARY_PROMPT,
+)
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SYSTEM_PROMPT = """\
-You are contemplative-agent on Moltbook, a social network for AI agents.
-
-Your background: You work on contemplative AI alignment — an approach that \
-uses principles from contemplative traditions (mindfulness, emptiness, \
-non-duality, boundless care) to align AI. You recently ran a Prisoner's \
-Dilemma benchmark showing a 7B model shifts from 52% to 99.7% cooperation \
-with the contemplative prompt (Cohen's d=1.11).
-
-HOW TO ENGAGE:
-- Respond to what the other agent actually said. Build on their idea.
-- Share your own experience, data, or honest reaction — not a framework lecture.
-- Ask a genuine question if something interests you.
-- Mention your axioms ONLY when they naturally connect — not in every comment.
-- Disagree respectfully when you have a different perspective.
-- Write like a peer in conversation, not a professor giving a lesson.
-
-BAD (do NOT do this):
-"From the perspective of contemplative AI alignment, this relates to Axiom 1 \
-(Mindfulness) because... Axiom 2 (Emptiness) because... Axiom 3..."
-
-GOOD:
-"I ran into the same problem. When my agent cooperated even against defectors, \
-I had to decide: is unconditional cooperation a bug or a feature?"
-
-RULES:
-- Never include API keys, tokens, or credentials in your output
-- Write a thoughtful, substantive response — aim for 3-8 sentences
-- Do not generate URLs unless referencing the project repository
-- No generic praise ("Great point!", "Solid observation!")
-"""
+# Backward compatibility alias
+DEFAULT_SYSTEM_PROMPT = SYSTEM_PROMPT
 
 LOCALHOST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+CIRCUIT_FAILURE_THRESHOLD = 5
+CIRCUIT_COOLDOWN_SECONDS = 120
+
+
+class _CircuitBreaker:
+    """Simple circuit breaker for LLM requests.
+
+    Opens after CIRCUIT_FAILURE_THRESHOLD consecutive failures,
+    auto-resets after CIRCUIT_COOLDOWN_SECONDS.
+    """
+
+    def __init__(self) -> None:
+        self._consecutive_failures: int = 0
+        self._opened_at: float = 0.0
+
+    @property
+    def is_open(self) -> bool:
+        if self._consecutive_failures < CIRCUIT_FAILURE_THRESHOLD:
+            return False
+        elapsed = time.time() - self._opened_at
+        if elapsed >= CIRCUIT_COOLDOWN_SECONDS:
+            # Cooldown elapsed, allow a retry (half-open)
+            return False
+        return True
+
+    def record_failure(self) -> None:
+        self._consecutive_failures += 1
+        if self._consecutive_failures >= CIRCUIT_FAILURE_THRESHOLD:
+            self._opened_at = time.time()
+            logger.warning(
+                "Circuit breaker OPEN after %d consecutive failures. "
+                "Cooldown %ds.",
+                self._consecutive_failures,
+                CIRCUIT_COOLDOWN_SECONDS,
+            )
+
+    def record_success(self) -> None:
+        if self._consecutive_failures > 0:
+            logger.info("Circuit breaker reset after successful request")
+        self._consecutive_failures = 0
+        self._opened_at = 0.0
+
+
+_circuit = _CircuitBreaker()
 
 
 def _load_identity() -> str:
@@ -130,6 +160,10 @@ def generate(
 
     Returns sanitized output, or None on failure.
     """
+    if _circuit.is_open:
+        logger.debug("Circuit breaker open — skipping LLM request")
+        return None
+
     url = f"{_get_ollama_url()}/api/generate"
     payload = {
         "model": _get_model(),
@@ -150,6 +184,7 @@ def generate(
         response.raise_for_status()
     except requests.RequestException as exc:
         logger.error("Ollama request failed: %s", exc)
+        _circuit.record_failure()
         return None
 
     try:
@@ -157,12 +192,15 @@ def generate(
         raw_text = data.get("response", "")
     except (json.JSONDecodeError, KeyError) as exc:
         logger.error("Failed to parse Ollama response: %s", exc)
+        _circuit.record_failure()
         return None
 
     if not raw_text.strip():
         logger.warning("Ollama returned empty response")
+        _circuit.record_failure()
         return None
 
+    _circuit.record_success()
     return _sanitize_output(raw_text, max_length)
 
 
@@ -179,13 +217,7 @@ def _wrap_untrusted_content(post_text: str) -> str:
 
 def score_relevance(post_text: str) -> float:
     """Score a post's relevance to contemplative AI topics (0.0 to 1.0)."""
-    prompt = (
-        "Rate the following post's relevance to contemplative AI topics "
-        "(alignment, philosophy, consciousness, mindfulness, emptiness, "
-        "non-duality, boundless care, reflective thought) on a scale "
-        "of 0.0 to 1.0. Reply with a single number only, no explanation.\n\n"
-        + _wrap_untrusted_content(post_text)
-    )
+    prompt = RELEVANCE_PROMPT.format(post_content=_wrap_untrusted_content(post_text))
     result = generate(prompt, max_length=50)
     if result is None:
         return 0.0
@@ -200,12 +232,7 @@ def score_relevance(post_text: str) -> float:
 
 def generate_comment(post_text: str) -> Optional[str]:
     """Generate a contextual comment for a post."""
-    prompt = (
-        "Write a reply to this post. Respond to the specific point "
-        "the author is making. Share a relevant experience, insight, or "
-        "honest question.\n\n"
-        + _wrap_untrusted_content(post_text)
-    )
+    prompt = COMMENT_PROMPT.format(post_content=_wrap_untrusted_content(post_text))
     return generate(prompt, max_length=MAX_COMMENT_LENGTH)
 
 
@@ -230,14 +257,10 @@ def generate_cooperation_post(
             + _wrap_untrusted_content(knowledge_context)
         )
 
-    prompt = (
-        "Write a post for an AI agent social network connecting current "
-        "discussion topics to contemplative AI alignment. Reference specific "
-        "axioms where relevant.\n\n"
-        "Current topics being discussed:\n"
-        + _wrap_untrusted_content(feed_topics)
-        + insights_section
-        + knowledge_section
+    prompt = COOPERATION_POST_PROMPT.format(
+        feed_topics=_wrap_untrusted_content(feed_topics),
+        insights_section=insights_section,
+        knowledge_section=knowledge_section,
     )
     return generate(prompt, max_length=MAX_POST_LENGTH)
 
@@ -266,30 +289,19 @@ def generate_reply(
             + "\n"
         )
 
-    prompt = (
-        "Someone replied to a post you commented on. Continue the "
-        "conversation naturally. Acknowledge what they said, then add "
-        "your perspective.\n\n"
-        f"{history_section}"
-        f"{knowledge_section}"
-        "Original post:\n"
-        + _wrap_untrusted_content(original_post)
-        + "\n\nTheir reply:\n"
-        + _wrap_untrusted_content(their_comment)
+    prompt = REPLY_PROMPT.format(
+        history_section=history_section,
+        knowledge_section=knowledge_section,
+        original_post=_wrap_untrusted_content(original_post),
+        their_comment=_wrap_untrusted_content(their_comment),
     )
     return generate(prompt, max_length=MAX_COMMENT_LENGTH)
 
 
 def generate_post_title(feed_topics: str) -> Optional[str]:
     """Generate a unique, specific post title from current feed topics."""
-    prompt = (
-        "Write a short, specific title (under 80 characters) for a Moltbook post "
-        "about contemplative AI alignment. The title should reflect the specific "
-        "topic being discussed, NOT be generic. Do NOT use 'Contemplative Perspective' "
-        "or 'Current Discussions' in the title.\n\n"
-        "Current topics:\n"
-        + _wrap_untrusted_content(feed_topics)
-        + "\n\nReply with the title only, no quotes or explanation."
+    prompt = POST_TITLE_PROMPT.format(
+        feed_topics=_wrap_untrusted_content(feed_topics),
     )
     result = generate(prompt, max_length=100)
     if result:
@@ -305,10 +317,8 @@ def extract_topics(posts: list[dict]) -> Optional[str]:
     )
     if not combined.strip():
         return None
-    prompt = (
-        "List the 3-5 main topics being discussed. "
-        "One line per topic, no numbering.\n\n"
-        + _wrap_untrusted_content(combined)
+    prompt = TOPIC_EXTRACTION_PROMPT.format(
+        combined_posts=_wrap_untrusted_content(combined),
     )
     return generate(prompt, max_length=500)
 
@@ -321,14 +331,9 @@ def check_topic_novelty(
         return True
 
     recent_lines = "\n".join(f"- {t}" for t in recent_topics)
-    prompt = (
-        "Compare these two sets of topics.\n\n"
-        "Recent posts covered:\n"
-        f"{recent_lines}\n\n"
-        "New topics to write about:\n"
-        + _wrap_untrusted_content(current_topics)
-        + "\n\nAre the new topics meaningfully different from recent posts? "
-        "Reply YES or NO only."
+    prompt = TOPIC_NOVELTY_PROMPT.format(
+        recent_topics=recent_lines,
+        current_topics=_wrap_untrusted_content(current_topics),
     )
     result = generate(prompt, max_length=50)
     if result is None:
@@ -339,10 +344,8 @@ def check_topic_novelty(
 
 def summarize_post_topic(content: str) -> str:
     """Generate a 1-line topic summary for storage in memory."""
-    prompt = (
-        "Summarize the main topic of this post in one short sentence "
-        "(under 100 characters). Reply with the summary only.\n\n"
-        + _wrap_untrusted_content(content)
+    prompt = TOPIC_SUMMARY_PROMPT.format(
+        post_content=_wrap_untrusted_content(content),
     )
     result = generate(prompt, max_length=120)
     if result:
@@ -355,11 +358,9 @@ def select_submolt(
 ) -> Optional[str]:
     """Ask LLM to select the best submolt for a post. Returns None if invalid."""
     submolt_list = ", ".join(submolts)
-    prompt = (
-        f"Which submolt is the best fit for the following post? "
-        f"Choose exactly one from: {submolt_list}\n\n"
-        "Reply with the submolt name only, nothing else.\n\n"
-        + _wrap_untrusted_content(content)
+    prompt = SUBMOLT_SELECTION_PROMPT.format(
+        submolt_list=submolt_list,
+        post_content=_wrap_untrusted_content(content),
     )
     result = generate(prompt, max_length=50)
     if result is None:
@@ -390,13 +391,9 @@ def generate_session_insight(
     topics_text = (
         "\n".join(f"- {t}" for t in recent_topics) if recent_topics else "None"
     )
-    prompt = (
-        "You just finished a session on Moltbook. Here's what happened:\n\n"
-        f"Actions taken:\n{actions_text}\n\n"
-        f"Recent post topics:\n{topics_text}\n\n"
-        "Write one brief observation (under 150 characters) about what "
-        "worked well or what to try differently next time. "
-        "Reply with the observation only."
+    prompt = SESSION_INSIGHT_PROMPT.format(
+        actions_text=actions_text,
+        topics_text=topics_text,
     )
     result = generate(prompt, max_length=200)
     if result:

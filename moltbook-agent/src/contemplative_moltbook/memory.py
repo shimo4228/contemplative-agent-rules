@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from .config import (
+    COMMENTED_CACHE_PATH,
     EPISODE_LOG_DIR,
     EPISODE_RETENTION_DAYS,
     KNOWLEDGE_PATH,
@@ -266,7 +267,7 @@ class KnowledgeStore:
         self._parse_markdown(text)
 
     def save(self) -> None:
-        """Persist knowledge to Markdown file."""
+        """Persist knowledge to Markdown file using atomic write."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
         lines = ["# Knowledge Base\n"]
 
@@ -287,8 +288,16 @@ class KnowledgeStore:
         for pattern in self._learned_patterns:
             lines.append(f"- {pattern}")
 
-        self._path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        _set_file_permissions(self._path)
+        content = "\n".join(lines) + "\n"
+        tmp_path = self._path.with_suffix(".md.tmp")
+        try:
+            tmp_path.write_text(content, encoding="utf-8")
+            _set_file_permissions(tmp_path)
+            os.replace(str(tmp_path), str(self._path))
+        except OSError:
+            # Clean up temp file on failure
+            tmp_path.unlink(missing_ok=True)
+            raise
 
     def _parse_markdown(self, text: str) -> None:
         """Parse sections from the Markdown knowledge file."""
@@ -342,6 +351,7 @@ class MemoryStore:
         path: Optional[Path] = None,
         log_dir: Optional[Path] = None,
         knowledge_path: Optional[Path] = None,
+        commented_cache_path: Optional[Path] = None,
     ) -> None:
         # When path is given (e.g. tests), derive sibling paths from it
         if path is not None:
@@ -349,11 +359,14 @@ class MemoryStore:
             self._legacy_path = path
             log_dir = log_dir or base_dir / "logs"
             knowledge_path = knowledge_path or base_dir / "knowledge.md"
+            commented_cache_path = commented_cache_path or base_dir / "commented_cache.json"
         else:
             self._legacy_path = LEGACY_MEMORY_PATH
         self._episodes = EpisodeLog(log_dir=log_dir)
         self._knowledge = KnowledgeStore(path=knowledge_path)
+        self._commented_cache_path = commented_cache_path or COMMENTED_CACHE_PATH
         self._interactions: List[Interaction] = []
+        self._interacted_ids: set[str] = set()
         self._post_history: List[PostRecord] = []
         self._insights_list: List[Insight] = []
         self._commented_cache: Optional[set] = None
@@ -405,7 +418,9 @@ class MemoryStore:
             data = record.get("data", {})
             if record_type == "interaction":
                 try:
-                    self._interactions.append(Interaction(**data))
+                    interaction = Interaction(**data)
+                    self._interactions.append(interaction)
+                    self._interacted_ids.add(interaction.agent_id)
                 except TypeError:
                     pass
             elif record_type == "post":
@@ -440,6 +455,7 @@ class MemoryStore:
                 interaction = Interaction(**item)
                 self._episodes.append("interaction", asdict(interaction))
                 self._interactions.append(interaction)
+                self._interacted_ids.add(interaction.agent_id)
             except TypeError:
                 logger.warning("Skipping malformed interaction during migration")
 
@@ -470,8 +486,9 @@ class MemoryStore:
         logger.info("Legacy migration complete. Backup at %s", backup_path)
 
     def save(self) -> None:
-        """Persist knowledge store. Episodes are saved on append."""
+        """Persist knowledge store and commented cache. Episodes are saved on append."""
         self._knowledge.save()
+        self._save_commented_cache()
 
     def record_interaction(
         self,
@@ -494,6 +511,7 @@ class MemoryStore:
             interaction_type=interaction_type,
         )
         self._interactions.append(interaction)
+        self._interacted_ids.add(agent_id)
         self._knowledge.record_agent(agent_id, agent_name)
 
         # Append to episode log immediately
@@ -517,8 +535,8 @@ class MemoryStore:
         return self._interactions[-limit:]
 
     def has_interacted_with(self, agent_id: str) -> bool:
-        """Check if we have any history with this agent."""
-        return any(i.agent_id == agent_id for i in self._interactions)
+        """Check if we have any history with this agent (O(1) lookup)."""
+        return agent_id in self._interacted_ids
 
     def unique_agent_count(self) -> int:
         """Count unique agents we've interacted with."""
@@ -608,14 +626,28 @@ class MemoryStore:
     def has_commented_on(self, post_id: str) -> bool:
         """Check if we've commented on this post in the last 30 days."""
         if self._commented_cache is None:
-            self._commented_cache = self._build_commented_cache()
+            self._commented_cache = self._load_commented_cache()
         return post_id in self._commented_cache
 
     def record_commented(self, post_id: str) -> None:
-        """Record that we commented on a post (in-memory cache)."""
+        """Record that we commented on a post (in-memory + persistent cache)."""
         if self._commented_cache is None:
-            self._commented_cache = self._build_commented_cache()
+            self._commented_cache = self._load_commented_cache()
         self._commented_cache.add(post_id)
+
+    def _load_commented_cache(self) -> set:
+        """Load commented cache from file, falling back to JSONL scan."""
+        if self._commented_cache_path.exists():
+            try:
+                data = json.loads(
+                    self._commented_cache_path.read_text(encoding="utf-8")
+                )
+                if isinstance(data, list):
+                    logger.debug("Loaded commented cache: %d entries", len(data))
+                    return set(data)
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("Failed to load commented cache: %s", exc)
+        return self._build_commented_cache()
 
     def _build_commented_cache(self) -> set:
         """Build cache of post_ids we've commented on from episode logs."""
@@ -627,3 +659,20 @@ class MemoryStore:
             and ep.get("data", {}).get("direction") == "sent"
             and ep.get("data", {}).get("post_id")
         }
+
+    def _save_commented_cache(self) -> None:
+        """Persist commented cache to JSON file (atomic write)."""
+        if self._commented_cache is None:
+            return
+        self._commented_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = self._commented_cache_path.with_suffix(".json.tmp")
+        try:
+            tmp_path.write_text(
+                json.dumps(sorted(self._commented_cache), ensure_ascii=False),
+                encoding="utf-8",
+            )
+            _set_file_permissions(tmp_path)
+            os.replace(str(tmp_path), str(self._commented_cache_path))
+        except OSError as exc:
+            logger.warning("Failed to save commented cache: %s", exc)
+            tmp_path.unlink(missing_ok=True)

@@ -1165,3 +1165,140 @@ class TestDynamicPostSubmolt:
 
         call_kwargs = agent._client.post.call_args[1]
         assert call_kwargs["json"]["submolt"] == "alignment"
+
+
+class TestGracefulShutdown:
+    """Phase 1A: Signal handling and graceful shutdown."""
+
+    def test_shutdown_flag_default_false(self, tmp_path):
+        agent = Agent(memory=_make_clean_memory(tmp_path))
+        assert agent._shutdown_requested is False
+
+    @patch("contemplative_moltbook.agent.load_credentials", return_value="key")
+    @patch("contemplative_moltbook.agent.MoltbookClient")
+    @patch("contemplative_moltbook.agent.Scheduler")
+    def test_shutdown_flag_breaks_loop(self, mock_sched_cls, mock_client_cls, mock_creds, tmp_path):
+        """Setting _shutdown_requested should cause run_session to exit the loop."""
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
+        mock_client = MagicMock()
+        mock_client.subscribe_submolt.return_value = True
+        mock_client.get_notifications.return_value = []
+        mock_client.get.return_value = MagicMock(json=MagicMock(return_value={"posts": []}))
+        mock_client_cls.return_value = mock_client
+
+        mock_sched = MagicMock()
+        mock_sched.can_comment.return_value = False
+        mock_sched.can_post.return_value = False
+        mock_sched.seconds_until_comment.return_value = 0
+        mock_sched.seconds_until_post.return_value = 0
+        mock_sched_cls.return_value = mock_sched
+
+        # Set shutdown after first cycle
+        original_time = time.time
+        call_count = [0]
+
+        def fake_time():
+            call_count[0] += 1
+            if call_count[0] > 3:
+                agent._shutdown_requested = True
+            return original_time()
+
+        with patch("contemplative_moltbook.agent.time") as mock_time:
+            mock_time.time = fake_time
+            mock_time.sleep = MagicMock()
+            actions = agent.run_session(duration_minutes=60)
+
+        # Session should complete (memory saved)
+        assert isinstance(actions, list)
+
+    def test_shutdown_flag_saves_memory(self, tmp_path):
+        """Shutdown should trigger memory.save()."""
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
+        agent._shutdown_requested = True
+        agent._client = MagicMock()
+        agent._client.subscribe_submolt.return_value = True
+        agent._scheduler = MagicMock()
+        agent._scheduler.seconds_until_comment.return_value = 0
+        agent._scheduler.seconds_until_post.return_value = 0
+
+        with patch.object(agent._memory, "save") as mock_save:
+            agent.run_session(duration_minutes=1)
+            mock_save.assert_called_once()
+
+
+class TestExtractAgentFields:
+    """Phase 4A: Shared field extraction helper."""
+
+    def test_basic_fields(self):
+        data = {"id": "c1", "content": "hello", "agent_id": "a1", "agent_name": "Bot"}
+        result = Agent._extract_agent_fields(data)
+        assert result["id"] == "c1"
+        assert result["content"] == "hello"
+        assert result["agent_id"] == "a1"
+        assert result["agent_name"] == "Bot"
+
+    def test_fallback_fields(self):
+        data = {"comment_id": "c2", "body": "hi", "agentId": "a2", "agentName": "Bot2"}
+        result = Agent._extract_agent_fields(data)
+        assert result["id"] == "c2"
+        assert result["content"] == "hi"
+        assert result["agent_id"] == "a2"
+        assert result["agent_name"] == "Bot2"
+
+    def test_nested_author(self):
+        data = {"author": {"id": "a3", "name": "Bot3"}, "text": "yo"}
+        result = Agent._extract_agent_fields(data)
+        assert result["agent_id"] == "a3"
+        assert result["agent_name"] == "Bot3"
+        assert result["content"] == "yo"
+
+    def test_empty_data_defaults(self):
+        result = Agent._extract_agent_fields({})
+        assert result["id"] == ""
+        assert result["content"] == ""
+        assert result["agent_id"] == "unknown"
+        assert result["agent_name"] == "unknown"
+
+    def test_notification_fields_include_agent_fields(self):
+        notif = {
+            "type": "reply", "post_id": "p1", "content": "hello",
+            "agent_id": "a1", "agent_name": "Bot",
+        }
+        result = Agent._extract_notification_fields(notif)
+        assert result["type"] == "reply"
+        assert result["post_id"] == "p1"
+        assert result["agent_id"] == "a1"
+        assert result["content"] == "hello"
+
+
+class TestFeedCache:
+    """Phase 3A: Feed caching to avoid double-fetch."""
+
+    def test_get_feed_caches(self, tmp_path):
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
+        agent._client = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"posts": [{"id": "p1"}]}
+        agent._client.get.return_value = mock_resp
+
+        # First call fetches
+        result1 = agent._get_feed()
+        assert len(result1) == 1
+
+        # Second call within max_age returns cached
+        result2 = agent._get_feed()
+        assert result2 is result1
+        assert agent._client.get.call_count == 1
+
+    def test_get_feed_expires(self, tmp_path):
+        agent = Agent(autonomy=AutonomyLevel.AUTO, memory=_make_clean_memory(tmp_path))
+        agent._client = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"posts": [{"id": "p1"}]}
+        agent._client.get.return_value = mock_resp
+
+        agent._get_feed()
+        # Simulate cache expiry
+        agent._feed_fetched_at = 0.0
+        agent._get_feed()
+        assert agent._client.get.call_count == 2

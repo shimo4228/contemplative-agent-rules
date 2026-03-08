@@ -388,3 +388,70 @@ class TestBroadenedRelevancePrompt:
         assert "philosophy" in prompt
         assert "consciousness" in prompt
         assert "reflective thought" in prompt
+
+
+class TestCircuitBreaker:
+    """Phase 2A: LLM circuit breaker."""
+
+    def setup_method(self):
+        """Reset global circuit breaker before each test."""
+        from contemplative_moltbook.llm import _circuit
+        _circuit.record_success()  # Reset state
+
+    def test_circuit_closed_initially(self):
+        from contemplative_moltbook.llm import _circuit
+        assert _circuit.is_open is False
+
+    def test_circuit_opens_after_threshold(self):
+        from contemplative_moltbook.llm import _circuit, CIRCUIT_FAILURE_THRESHOLD
+        for _ in range(CIRCUIT_FAILURE_THRESHOLD):
+            _circuit.record_failure()
+        assert _circuit.is_open is True
+
+    def test_circuit_resets_on_success(self):
+        from contemplative_moltbook.llm import _circuit, CIRCUIT_FAILURE_THRESHOLD
+        for _ in range(CIRCUIT_FAILURE_THRESHOLD):
+            _circuit.record_failure()
+        assert _circuit.is_open is True
+        _circuit.record_success()
+        assert _circuit.is_open is False
+
+    def test_circuit_recovers_after_cooldown(self):
+        from contemplative_moltbook.llm import _circuit, CIRCUIT_FAILURE_THRESHOLD
+        for _ in range(CIRCUIT_FAILURE_THRESHOLD):
+            _circuit.record_failure()
+        assert _circuit.is_open is True
+        # Simulate cooldown elapsed
+        _circuit._opened_at = 0.0
+        assert _circuit.is_open is False
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_generate_returns_none_when_open(self, mock_post):
+        from contemplative_moltbook.llm import _circuit, CIRCUIT_FAILURE_THRESHOLD
+        for _ in range(CIRCUIT_FAILURE_THRESHOLD):
+            _circuit.record_failure()
+
+        result = generate("test prompt")
+        assert result is None
+        mock_post.assert_not_called()
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_generate_records_failure(self, mock_post):
+        from contemplative_moltbook.llm import _circuit
+        mock_post.side_effect = requests.ConnectionError("refused")
+
+        result = generate("test prompt")
+        assert result is None
+        assert _circuit._consecutive_failures == 1
+
+    @patch("contemplative_moltbook.llm.requests.post")
+    def test_generate_records_success(self, mock_post):
+        from contemplative_moltbook.llm import _circuit
+        _circuit.record_failure()  # Pre-set one failure
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"response": "Hello world"}
+        mock_post.return_value = mock_resp
+
+        result = generate("test prompt")
+        assert result == "Hello world"
+        assert _circuit._consecutive_failures == 0

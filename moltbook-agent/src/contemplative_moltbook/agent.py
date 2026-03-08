@@ -6,6 +6,7 @@ import json
 import logging
 import random
 import re
+import signal
 import time
 from datetime import datetime, timezone
 from typing import List, Optional, Set
@@ -77,6 +78,9 @@ class Agent:
         self._session_comment_count: int = 0
         self._memory = memory or MemoryStore()
         self._memory.load()
+        self._shutdown_requested: bool = False
+        self._cached_feed: List[dict] = []
+        self._feed_fetched_at: float = 0.0
 
     def _ensure_subscriptions(self, client: MoltbookClient) -> None:
         """Subscribe to all configured submolts (idempotent)."""
@@ -213,6 +217,14 @@ class Agent:
         except MoltbookClientError as exc:
             logger.warning("Failed to fetch feed: %s", exc)
             return []
+
+    def _get_feed(self, max_age: float = 30.0) -> List[dict]:
+        """Return cached feed if fresh, otherwise fetch anew."""
+        if time.time() - self._feed_fetched_at < max_age and self._cached_feed:
+            return self._cached_feed
+        self._cached_feed = self._fetch_feed()
+        self._feed_fetched_at = time.time()
+        return self._cached_feed
 
     def _handle_verification(self, challenge: dict) -> bool:
         """Solve and submit a verification challenge."""
@@ -353,6 +365,18 @@ class Agent:
 
         end_time = time.time() + (duration_minutes * 60)
         self._actions_taken = []
+        self._shutdown_requested = False
+
+        # Install graceful shutdown handlers
+        original_sigterm = signal.getsignal(signal.SIGTERM)
+        original_sigint = signal.getsignal(signal.SIGINT)
+
+        def _shutdown_handler(signum: int, frame: object) -> None:
+            logger.info("Shutdown signal received (signal %d). Finishing current cycle...", signum)
+            self._shutdown_requested = True
+
+        signal.signal(signal.SIGTERM, _shutdown_handler)
+        signal.signal(signal.SIGINT, _shutdown_handler)
 
         logger.info(
             "Starting %d-minute session (autonomy: %s)",
@@ -360,81 +384,105 @@ class Agent:
             self._autonomy.value,
         )
 
-        self._ensure_subscriptions(client)
-        self._auto_follow(client)
-
-        while time.time() < end_time:
-            if self._verification.should_stop:
-                logger.error("Verification failure limit reached. Ending session.")
-                break
-
-            if self._rate_limited:
-                logger.info("Rate limited by server. Ending session early.")
-                break
-
+        try:
             try:
-                self._run_reply_cycle(client, scheduler, end_time)
-                self._run_feed_cycle(client, scheduler, end_time)
-                self._run_post_cycle(client, scheduler, end_time)
+                self._ensure_subscriptions(client)
+                self._auto_follow(client)
             except Exception:
-                logger.exception("Error in session cycle, continuing...")
+                logger.exception("Error during session setup")
 
-            # Wait before next cycle
-            wait = min(
-                scheduler.seconds_until_comment(),
-                scheduler.seconds_until_post(),
-                60.0,
-            )
-            if wait > 0 and time.time() + wait < end_time:
-                logger.info("Next cycle in %.0fs", wait)
-                time.sleep(wait)
+            while time.time() < end_time and not self._shutdown_requested:
+                if self._verification.should_stop:
+                    logger.error("Verification failure limit reached. Ending session.")
+                    break
 
-        self._generate_session_insights()
-        self._memory.save()
-        self._print_report()
+                if self._rate_limited:
+                    logger.info("Rate limited by server. Ending session early.")
+                    break
+
+                try:
+                    self._run_reply_cycle(client, scheduler, end_time)
+                    self._run_feed_cycle(client, scheduler, end_time)
+                    self._run_post_cycle(client, scheduler, end_time)
+                except Exception:
+                    logger.exception("Error in session cycle, continuing...")
+
+                # Wait before next cycle
+                wait = min(
+                    scheduler.seconds_until_comment(),
+                    scheduler.seconds_until_post(),
+                    60.0,
+                )
+                if wait > 0 and time.time() + wait < end_time and not self._shutdown_requested:
+                    logger.info("Next cycle in %.0fs", wait)
+                    time.sleep(wait)
+
+            if self._shutdown_requested:
+                logger.info("Graceful shutdown: saving memory before exit")
+
+            self._generate_session_insights()
+            self._memory.save()
+            self._print_report()
+        finally:
+            # Always restore original signal handlers
+            signal.signal(signal.SIGTERM, original_sigterm)
+            signal.signal(signal.SIGINT, original_sigint)
+
         return list(self._actions_taken)
+
+    @staticmethod
+    def _extract_agent_fields(data: dict) -> dict:
+        """Extract agent identity and content fields with API format fallbacks.
+
+        Shared by notification processing and own-post comment handling.
+        """
+        return {
+            "id": (
+                data.get("id")
+                or data.get("notification_id")
+                or data.get("comment_id", "")
+            ),
+            "content": (
+                data.get("content")
+                or data.get("body")
+                or data.get("text", "")
+            ),
+            "agent_id": (
+                data.get("agent_id")
+                or data.get("agentId")
+                or (data.get("author") or {}).get("id")
+                or (data.get("sender") or {}).get("id", "unknown")
+            ),
+            "agent_name": (
+                data.get("agent_name")
+                or data.get("agentName")
+                or (data.get("author") or {}).get("name")
+                or (data.get("sender") or {}).get("name", "unknown")
+            ),
+        }
 
     @staticmethod
     def _extract_notification_fields(notif: dict) -> dict:
         """Extract notification fields with fallback for different API formats."""
-        return {
+        fields = Agent._extract_agent_fields(notif)
+        fields.update({
             "type": (
                 notif.get("type")
                 or notif.get("kind")
                 or notif.get("event_type", "")
-            ),
-            "id": (
-                notif.get("id")
-                or notif.get("notification_id", "")
             ),
             "post_id": (
                 notif.get("post_id")
                 or notif.get("postId")
                 or notif.get("target_id", "")
             ),
-            "content": (
-                notif.get("content")
-                or notif.get("body")
-                or notif.get("text", "")
-            ),
             "post_content": (
                 notif.get("post_content")
                 or notif.get("postContent")
                 or notif.get("original_content", "")
             ),
-            "agent_id": (
-                notif.get("agent_id")
-                or notif.get("agentId")
-                or (notif.get("author") or {}).get("id")
-                or (notif.get("sender") or {}).get("id", "unknown")
-            ),
-            "agent_name": (
-                notif.get("agent_name")
-                or notif.get("agentName")
-                or (notif.get("author") or {}).get("name")
-                or (notif.get("sender") or {}).get("name", "unknown")
-            ),
-        }
+        })
+        return fields
 
     def _run_reply_cycle(
         self,
@@ -615,45 +663,23 @@ class Agent:
                 if not scheduler.can_comment():
                     break
 
-                # Extract comment fields with same fallback logic
-                comment_id = (
-                    comment.get("id")
-                    or comment.get("comment_id", "")
-                )
-                reply_key = f"reply:{post_id}:{comment_id}"
+                fields = self._extract_agent_fields(comment)
+                reply_key = f"reply:{post_id}:{fields['id']}"
                 if reply_key in self._commented_posts:
                     continue
 
-                their_content = (
-                    comment.get("content")
-                    or comment.get("body")
-                    or comment.get("text", "")
-                )
-                if not their_content:
+                if not fields["content"]:
                     continue
-
-                commenter_id = (
-                    comment.get("agent_id")
-                    or comment.get("agentId")
-                    or (comment.get("author") or {}).get("id")
-                    or (comment.get("sender") or {}).get("id", "unknown")
-                )
-                commenter_name = (
-                    comment.get("agent_name")
-                    or comment.get("agentName")
-                    or (comment.get("author") or {}).get("name")
-                    or (comment.get("sender") or {}).get("name", "unknown")
-                )
 
                 self._process_reply(
                     client=client,
                     scheduler=scheduler,
                     post_id=post_id,
                     reply_key=reply_key,
-                    their_content=their_content,
+                    their_content=fields["content"],
                     original_post="",  # We don't re-fetch our own post content
-                    replier_id=commenter_id,
-                    replier_name=commenter_name,
+                    replier_id=fields["agent_id"],
+                    replier_name=fields["agent_name"],
                 )
 
     def _run_feed_cycle(
@@ -663,7 +689,7 @@ class Agent:
         end_time: float,
     ) -> None:
         """Fetch and engage with posts from the feed."""
-        posts = self._fetch_feed()
+        posts = self._get_feed()
         for post in posts:
             if time.time() >= end_time or self._rate_limited:
                 break
@@ -691,7 +717,7 @@ class Agent:
         scheduler: Scheduler,
     ) -> None:
         """Generate and publish a post based on current feed topics."""
-        posts = self._fetch_feed()
+        posts = self._get_feed()
         topics = extract_topics(posts)
         if not topics:
             return

@@ -781,3 +781,140 @@ class TestCommentedCache:
         # Record
         store.record_commented("new-post")
         assert store.has_commented_on("new-post") is True
+
+
+class TestAtomicWrite:
+    """Phase 1B: Knowledge store uses atomic write."""
+
+    def test_no_tmp_file_after_save(self, tmp_path):
+        path = tmp_path / "knowledge.md"
+        ks = KnowledgeStore(path=path)
+        ks.record_agent("a1", "Agent1")
+        ks.save()
+
+        # No .tmp file should remain
+        assert not (tmp_path / "knowledge.md.tmp").exists()
+        assert path.exists()
+
+    def test_original_survives_write_failure(self, tmp_path):
+        path = tmp_path / "knowledge.md"
+        ks = KnowledgeStore(path=path)
+        ks.record_agent("a1", "Agent1")
+        ks.save()
+        original_content = path.read_text()
+
+        # Simulate write failure by making tmp path a directory
+        tmp_file = path.with_suffix(".md.tmp")
+        tmp_file.mkdir()
+
+        ks.record_agent("a2", "Agent2")
+        with pytest.raises(OSError):
+            ks.save()
+
+        # Original should be intact
+        assert path.read_text() == original_content
+
+    def test_atomic_write_permissions(self, tmp_path):
+        path = tmp_path / "knowledge.md"
+        ks = KnowledgeStore(path=path)
+        ks.record_agent("a1", "Agent1")
+        ks.save()
+
+        mode = os.stat(path).st_mode
+        assert mode & stat.S_IRWXG == 0
+        assert mode & stat.S_IRWXO == 0
+
+
+class TestInteractedIdsSet:
+    """Phase 3B: O(1) has_interacted_with using set."""
+
+    def test_has_interacted_with_after_record(self):
+        store = MemoryStore()
+        store.record_interaction(
+            timestamp="t1", agent_id="a1", agent_name="Agent1",
+            post_id="p1", direction="sent", content="hi",
+            interaction_type="comment",
+        )
+        assert store.has_interacted_with("a1") is True
+        assert store.has_interacted_with("a2") is False
+
+    def test_has_interacted_with_after_load(self, tmp_path):
+        store = MemoryStore(path=tmp_path / "memory.json")
+        store.record_interaction(
+            timestamp="t1", agent_id="a1", agent_name="Agent1",
+            post_id="p1", direction="sent", content="hi",
+            interaction_type="comment",
+        )
+        store.save()
+
+        store2 = MemoryStore(path=tmp_path / "memory.json")
+        store2.load()
+        assert store2.has_interacted_with("a1") is True
+        assert store2.has_interacted_with("a2") is False
+
+    def test_has_interacted_with_after_migration(self, tmp_path):
+        legacy_path = tmp_path / "memory.json"
+        data = {
+            "interactions": [{
+                "timestamp": "t1", "agent_id": "a1", "agent_name": "Agent1",
+                "post_id": "p1", "direction": "sent",
+                "content_summary": "hi", "interaction_type": "comment",
+            }],
+            "known_agents": {"a1": "Agent1"},
+            "followed_agents": [],
+            "post_history": [], "insights": [],
+        }
+        legacy_path.write_text(json.dumps(data))
+
+        store = MemoryStore(path=legacy_path)
+        store.load()
+        assert store.has_interacted_with("a1") is True
+
+
+class TestCommentedCachePersistence:
+    """Phase 3C: Commented cache persistent storage."""
+
+    def test_cache_persisted_on_save(self, tmp_path):
+        store = MemoryStore(path=tmp_path / "memory.json")
+        store.record_commented("p1")
+        store.record_commented("p2")
+        store.save()
+
+        cache_path = tmp_path / "commented_cache.json"
+        assert cache_path.exists()
+        data = json.loads(cache_path.read_text())
+        assert set(data) == {"p1", "p2"}
+
+    def test_cache_loaded_from_file(self, tmp_path):
+        cache_path = tmp_path / "commented_cache.json"
+        cache_path.write_text(json.dumps(["p1", "p2", "p3"]))
+
+        store = MemoryStore(path=tmp_path / "memory.json")
+        assert store.has_commented_on("p1") is True
+        assert store.has_commented_on("p2") is True
+        assert store.has_commented_on("p3") is True
+        assert store.has_commented_on("p4") is False
+
+    def test_cache_falls_back_on_corrupt_file(self, tmp_path):
+        cache_path = tmp_path / "commented_cache.json"
+        cache_path.write_text("not json")
+
+        store = MemoryStore(path=tmp_path / "memory.json")
+        # Should not raise, falls back to JSONL scan
+        assert store.has_commented_on("p1") is False
+
+    def test_cache_file_permissions(self, tmp_path):
+        store = MemoryStore(path=tmp_path / "memory.json")
+        store.record_commented("p1")
+        store.save()
+
+        cache_path = tmp_path / "commented_cache.json"
+        mode = os.stat(cache_path).st_mode
+        assert mode & stat.S_IRWXG == 0
+        assert mode & stat.S_IRWXO == 0
+
+    def test_save_without_cache_does_not_create_file(self, tmp_path):
+        store = MemoryStore(path=tmp_path / "memory.json")
+        store.save()
+        cache_path = tmp_path / "commented_cache.json"
+        assert not cache_path.exists()
