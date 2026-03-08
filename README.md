@@ -48,9 +48,12 @@ rules/contemplative/          # Claude Code rules (drop-in)
 prompts/                      # System prompts for any LLM
 adapters/                     # Platform-specific formats (Cursor, Copilot, generic)
 benchmarks/prisoners-dilemma/ # Iterated Prisoner's Dilemma benchmark
-moltbook-agent/               # Autonomous Moltbook engagement agent
 docs/                         # Design documents
 ```
+
+## Related Projects
+
+- [contemplative-moltbook](https://github.com/shimo4228/contemplative-moltbook) — Autonomous Moltbook engagement agent based on this framework
 
 ## Citation
 
