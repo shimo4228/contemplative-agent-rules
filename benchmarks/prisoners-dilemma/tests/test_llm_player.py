@@ -62,7 +62,7 @@ class TestLLMPlayer:
 
     def test_name_contemplative(self):
         player = LLMPlayer(contemplative=True)
-        assert "contemplative" in player.name
+        assert "custom" in player.name
 
     def test_custom_label(self):
         player = LLMPlayer(label="MyBot")

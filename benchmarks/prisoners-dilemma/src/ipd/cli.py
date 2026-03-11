@@ -4,6 +4,7 @@ import argparse
 import logging
 
 from .benchmark import format_report, run_benchmark, save_results
+from .llm_player import PromptVariant
 
 
 def main() -> None:
@@ -28,6 +29,12 @@ def main() -> None:
         choices=["ollama", "openai"],
         help="LLM backend: ollama (default) or openai",
     )
+    parser.add_argument(
+        "--variants", type=str, nargs="+",
+        default=None,
+        choices=["baseline", "custom", "paper_faithful"],
+        help="Prompt variants to benchmark (default: baseline custom)",
+    )
 
     args = parser.parse_args()
 
@@ -38,7 +45,15 @@ def main() -> None:
         datefmt="%H:%M:%S",
     )
 
-    results = run_benchmark(num_rounds=args.rounds, backend=args.backend)
+    variants = None
+    if args.variants:
+        variants = [PromptVariant(v) for v in args.variants]
+
+    results = run_benchmark(
+        num_rounds=args.rounds,
+        backend=args.backend,
+        variants=variants,
+    )
     report = format_report(results)
     print(report)
 

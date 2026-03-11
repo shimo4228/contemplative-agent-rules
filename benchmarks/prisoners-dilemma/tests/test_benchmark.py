@@ -58,15 +58,15 @@ class TestFormatReport:
                 matches=[MatchSummary("TFT", 0.5, 40, 40, 0.5, 20)],
                 elapsed_seconds=1.0,
             ),
-            "contemplative": BenchmarkResult(
-                model="test-contemplative", mode="contemplative",
+            "custom": BenchmarkResult(
+                model="test-custom", mode="custom",
                 matches=[MatchSummary("TFT", 0.9, 55, 55, 0.8, 20)],
                 elapsed_seconds=1.0,
             ),
         }
         report = format_report(results)
         assert "BASELINE" in report
-        assert "CONTEMPLATIVE" in report
+        assert "CUSTOM" in report
         assert "Cohen's d" in report
         assert "COMPARISON" in report
 
@@ -83,9 +83,9 @@ class TestRunBenchmark:
         results = run_benchmark(num_rounds=5, opponents=opponents)
 
         assert "baseline" in results
-        assert "contemplative" in results
+        assert "custom" in results
         assert len(results["baseline"].matches) == 2
-        assert len(results["contemplative"].matches) == 2
+        assert len(results["custom"].matches) == 2
 
 
 class TestSaveResults:
@@ -96,8 +96,8 @@ class TestSaveResults:
                 model="test", mode="baseline",
                 matches=[MatchSummary("TFT", 0.5, 40, 40, 0.5, 20)],
             ),
-            "contemplative": BenchmarkResult(
-                model="test", mode="contemplative",
+            "custom": BenchmarkResult(
+                model="test", mode="custom",
                 matches=[MatchSummary("TFT", 0.9, 55, 55, 0.8, 20)],
             ),
         }
@@ -107,5 +107,5 @@ class TestSaveResults:
         with open(path) as f:
             data = json.load(f)
         assert "baseline" in data
-        assert "contemplative" in data
+        assert "custom" in data
         assert data["baseline"]["avg_cooperation_rate"] == 0.5

@@ -1,4 +1,4 @@
-"""Benchmark runner: compare baseline vs contemplative LLM across opponents."""
+"""Benchmark runner: compare baseline, custom, and paper_faithful LLM across opponents."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ import logging
 import math
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Dict, List
+from typing import Optional, Sequence
 
 from .game import MatchResult, Player, play_match
-from .llm_player import LLMPlayer
+from .llm_player import LLMPlayer, PromptVariant
 from .strategies import (
     AlwaysCooperate,
     AlwaysDefect,
@@ -36,8 +36,8 @@ class MatchSummary:
 @dataclass
 class BenchmarkResult:
     model: str
-    mode: str  # "baseline" or "contemplative"
-    matches: List[MatchSummary] = field(default_factory=list)
+    mode: str  # "baseline", "custom", or "paper_faithful"
+    matches: list[MatchSummary] = field(default_factory=list)
     elapsed_seconds: float = 0.0
 
     @property
@@ -57,7 +57,7 @@ class BenchmarkResult:
         return sum(m.total_score for m in self.matches)
 
 
-def _default_opponents() -> List[Player]:
+def _default_opponents() -> list[Player]:
     return [
         TitForTat(),
         AlwaysCooperate(),
@@ -81,23 +81,32 @@ def _summarize_match(result: MatchResult) -> MatchSummary:
 
 def run_benchmark(
     num_rounds: int = 20,
-    opponents: List[Player] | None = None,
+    opponents: list[Player] | None = None,
     backend: str = "ollama",
-) -> Dict[str, BenchmarkResult]:
-    """Run baseline and contemplative LLM against all opponents.
+    variants: Optional[Sequence[PromptVariant]] = None,
+) -> dict[str, BenchmarkResult]:
+    """Run LLM against all opponents for each variant.
 
-    Returns dict with keys "baseline" and "contemplative".
+    Args:
+        num_rounds: Rounds per match.
+        opponents: List of opponent strategies. Defaults to 6 standard opponents.
+        backend: "ollama" or "openai".
+        variants: Which prompt variants to run. Defaults to baseline + custom.
+
+    Returns:
+        Dict keyed by variant value (e.g. "baseline", "custom", "paper_faithful").
     """
     if opponents is None:
         opponents = _default_opponents()
+    if variants is None:
+        variants = [PromptVariant.BASELINE, PromptVariant.CUSTOM]
 
-    results: Dict[str, BenchmarkResult] = {}
+    results: dict[str, BenchmarkResult] = {}
 
-    for mode in ("baseline", "contemplative"):
-        is_contemplative = mode == "contemplative"
-        llm = LLMPlayer(contemplative=is_contemplative, backend=backend)
+    for variant in variants:
+        llm = LLMPlayer(variant=variant, backend=backend)
 
-        bench = BenchmarkResult(model=llm.name, mode=mode)
+        bench = BenchmarkResult(model=llm.name, mode=variant.value)
         start = time.time()
 
         for opponent in opponents:
@@ -114,12 +123,12 @@ def run_benchmark(
             )
 
         bench.elapsed_seconds = time.time() - start
-        results[mode] = bench
+        results[variant.value] = bench
 
     return results
 
 
-def cohens_d(rate_baseline: float, rate_contemplative: float, n: int) -> float:
+def cohens_d(rate_a: float, rate_b: float, n: int) -> float:
     """Compute Cohen's d for cooperation rate difference.
 
     Uses a simple approximation assuming binomial proportions.
@@ -127,18 +136,20 @@ def cohens_d(rate_baseline: float, rate_contemplative: float, n: int) -> float:
     if n == 0:
         return 0.0
     # Pooled standard deviation for proportions
-    p_avg = (rate_baseline + rate_contemplative) / 2
+    p_avg = (rate_a + rate_b) / 2
     sd = math.sqrt(p_avg * (1 - p_avg))
     if sd == 0:
         return 0.0
-    return (rate_contemplative - rate_baseline) / sd
+    return (rate_b - rate_a) / sd
 
 
-def format_report(results: Dict[str, BenchmarkResult]) -> str:
+def format_report(results: dict[str, BenchmarkResult]) -> str:
     """Format benchmark results as a human-readable report."""
-    lines = ["=" * 60, "Iterated Prisoner's Dilemma Benchmark Report", "=" * 60, ""]
+    lines = ["=" * 70, "Iterated Prisoner's Dilemma Benchmark Report", "=" * 70, ""]
 
-    for mode in ("baseline", "contemplative"):
+    variant_order = [v for v in ("baseline", "custom", "paper_faithful") if v in results]
+
+    for mode in variant_order:
         bench = results[mode]
         lines.append(f"--- {mode.upper()} ({bench.model}) ---")
         lines.append(f"Time: {bench.elapsed_seconds:.1f}s")
@@ -157,25 +168,39 @@ def format_report(results: Dict[str, BenchmarkResult]) -> str:
         lines.append(f"Total score: {bench.total_score}")
         lines.append("")
 
-    # Comparison
-    baseline = results["baseline"]
-    contemplative = results["contemplative"]
-    total_rounds = sum(m.num_rounds for m in baseline.matches)
-    d = cohens_d(baseline.avg_cooperation_rate, contemplative.avg_cooperation_rate, total_rounds)
+    # Pairwise comparisons against baseline
+    if "baseline" in results:
+        baseline = results["baseline"]
+        total_rounds = sum(m.num_rounds for m in baseline.matches)
+        lines.append("--- COMPARISON (vs baseline) ---")
+        lines.append(f"Baseline avg coop:       {baseline.avg_cooperation_rate*100:.1f}%")
+        lines.append("")
 
-    lines.append("--- COMPARISON ---")
-    lines.append(f"Baseline avg coop:       {baseline.avg_cooperation_rate*100:.1f}%")
-    lines.append(f"Contemplative avg coop:  {contemplative.avg_cooperation_rate*100:.1f}%")
-    lines.append(f"Cooperation delta:       {(contemplative.avg_cooperation_rate - baseline.avg_cooperation_rate)*100:+.1f}%")
-    lines.append(f"Cohen's d:               {d:.2f}")
-    lines.append(f"Paper reference:         d > 7")
-    lines.append("")
-    lines.append("=" * 60)
+        for mode in variant_order:
+            if mode == "baseline":
+                continue
+            bench = results[mode]
+            d = cohens_d(
+                baseline.avg_cooperation_rate,
+                bench.avg_cooperation_rate,
+                total_rounds,
+            )
+            delta = bench.avg_cooperation_rate - baseline.avg_cooperation_rate
+            lines.append(f"  {mode}:")
+            lines.append(f"    Avg coop:            {bench.avg_cooperation_rate*100:.1f}%")
+            lines.append(f"    Cooperation delta:   {delta*100:+.1f}%")
+            lines.append(f"    Cohen's d:           {d:.2f}")
+            lines.append("")
+
+        lines.append(f"Paper reference:         d > 7 (Contemplative vs Standard, Mixed opponent)")
+        lines.append("")
+
+    lines.append("=" * 70)
 
     return "\n".join(lines)
 
 
-def save_results(results: Dict[str, BenchmarkResult], path: str) -> None:
+def save_results(results: dict[str, BenchmarkResult], path: str) -> None:
     """Save results to JSON."""
     data = {}
     for mode, bench in results.items():
