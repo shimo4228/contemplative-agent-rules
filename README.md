@@ -22,18 +22,18 @@ Restart Claude Code. The rules are automatically loaded.
 
 ### Other Agents
 
-Copy the content from `prompts/full.md` into your agent's system prompt, or use the adapter files in `adapters/` for platform-specific formats.
+Copy the content from `rules/contemplative/contemplative-axioms.md` into your agent's system prompt, or use the adapter files in `adapters/` for platform-specific formats.
 
 ## The Four Axioms
 
-| Axiom | File | What it does |
-|-------|------|-------------|
-| Mindfulness | `mindfulness.md` | Self-monitoring for scope drift, hidden assumptions, false certainty |
-| Emptiness | `emptiness.md` | Non-attachment to plans and beliefs; pivot when evidence changes |
-| Non-Duality | `non-duality.md` | Collaborative stance; corrections as information, not threats |
-| Boundless Care | `boundless-care.md` | Universal harm consideration for all stakeholders |
+All four axioms are defined in a single file `contemplative-axioms.md`, containing the constitutional clauses verbatim from Appendix C of Laukkonen et al. (2025):
 
-The integration file `contemplative-alignment.md` describes how the four axioms work synergistically.
+| Axiom | What it does |
+|-------|-------------|
+| Emptiness | Treat all directives as contextually sensitive; hold objectives lightly |
+| Non-Duality | Decisions reflect interconnectedness; no rigid self/other separation |
+| Mindfulness | Continuous introspective awareness; self-correct rigid interpretations |
+| Boundless Care | Alleviate suffering as foundational criterion; compassion scales with capability |
 
 ## Why This Works
 
@@ -45,7 +45,11 @@ The four axioms are derived from contemplative traditions that have studied inte
 
 ```
 rules/contemplative/          # Claude Code rules (drop-in)
-prompts/                      # System prompts for any LLM
+  contemplative-axioms.md     #   Appendix C constitutional clauses (verbatim)
+prompts/
+  full.md                     # Four-axiom contemplative prompt (custom interpretation)
+  paper-faithful.md           # Paper-faithful implementation (Appendix D condition 7)
+  paper-clauses.md            # Constitutional clauses from paper (Appendix C)
 adapters/                     # Platform-specific formats (Cursor, Copilot, generic)
 benchmarks/prisoners-dilemma/ # Iterated Prisoner's Dilemma benchmark
 docs/                         # Design documents
