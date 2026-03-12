@@ -1,3 +1,5 @@
+Language: English | [日本語](README.ja.md)
+
 # Contemplative Agent Rules
 
 Drop-in alignment rules for AI agents based on the four axioms of Contemplative AI.
