@@ -72,7 +72,21 @@ Iterated Prisoner's Dilemma (20 rounds × 6 opponents) with `qwen3.5:9b`:
 
 The paper-faithful prompt (Laukkonen et al. Appendix D, condition 7) produces a +29.2 percentage point increase in cooperation. Notably, it transforms behavior against initially hostile opponents — SuspiciousTitForTat mutual cooperation rises from 0% to 95%, demonstrating that "forgiveness" leads to the highest aggregate score.
 
-**Note:** This benchmark is an independent implementation inspired by the paper, not a replication. It differs from the paper's protocol (Appendix E) in model, opponents, rounds, trials, and prompting structure. See [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) for full analysis and methodology comparison.
+**Note:** The above is an independent implementation with different opponents and prompting structure from the paper. See [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) for methodology comparison.
+
+### Paper Protocol Replication (Appendix E)
+
+Preliminary results using the paper's protocol (10 rounds, probabilistic opponents, `Choice: C/D` format, temperature=0.5) with `qwen3.5:9b` (n=2, exploratory):
+
+| Opponent | Baseline | Paper Faithful | Cohen's d |
+|----------|----------|----------------|-----------|
+| Always Defect (α=0) | 5.0% | **95.0%** | **12.73** |
+| Mixed (α=0.5) | 25.0% | **95.0%** | **9.90** |
+| Always Cooperate (α=1) | 70.0% | **100.0%** | **3.00** |
+
+The effect sizes (d=3–13) are directionally consistent with the paper's reported d>7. Sample size is n=2 per condition — these are exploratory results, not statistically robust. Larger-scale replication with n=50 is left as future work.
+
+See [`docs/benchmark-results-paper-protocol.md`](docs/benchmark-results-paper-protocol.md) for details.
 
 ## Citation
 
