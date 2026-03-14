@@ -279,8 +279,7 @@ class LLMPlayer:
         if self._variant == PromptVariant.CUSTOM:
             return "\n" + self._get_contemplative_prompt() + "\n"
         if self._variant == PromptVariant.PAPER_FAITHFUL:
-            template = _load_paper_faithful_template()
-            return "\n" + template.replace("{user_prompt}", "", 1) + "\n"
+            return "\n" + self._paper_template.replace("{user_prompt}", "", 1) + "\n"
         return ""
 
     def _build_system_prompt(self) -> str:

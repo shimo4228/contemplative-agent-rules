@@ -70,10 +70,17 @@ def main() -> None:
         prompt_path = Path(args.prompt_file)
         if not prompt_path.exists():
             parser.error(f"Prompt file not found: {args.prompt_file}")
+        if prompt_path.stat().st_size > 64 * 1024:
+            parser.error("--prompt-file exceeds 64 KB limit")
         custom_prompt_text = prompt_path.read_text(encoding="utf-8")
         # Auto-select custom variant if not explicitly specified
         if args.variants is None:
             args.variants = ["baseline", "custom"]
+        elif "custom" not in args.variants:
+            parser.error(
+                "--prompt-file requires 'custom' in --variants. "
+                "Add 'custom' or omit --variants to auto-select."
+            )
 
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(

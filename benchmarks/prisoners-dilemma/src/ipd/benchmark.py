@@ -273,6 +273,7 @@ def run_paper_benchmark(
         num_rounds: Rounds per game (paper uses 10).
         backend: "ollama" or "openai".
         variants: Prompt variants to test.
+        custom_prompt_text: Custom contemplative prompt (used for CUSTOM variant).
 
     Returns:
         PaperBenchmarkResult with all simulation data.

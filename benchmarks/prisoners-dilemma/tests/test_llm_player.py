@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from ipd.game import Move
-from ipd.llm_player import LLMPlayer, _format_history, _parse_move
+from ipd.llm_player import LLMPlayer, PromptVariant, _format_history, _parse_move
 
 
 class TestParseMove:
@@ -93,6 +93,21 @@ class TestLLMPlayer:
         player = LLMPlayer(contemplative=False)
         move = player.choose([])
         assert move is Move.COOPERATE  # default on failure
+
+    def test_custom_prompt_text_overrides_builtin(self):
+        player = LLMPlayer(
+            variant=PromptVariant.CUSTOM,
+            custom_prompt_text="My custom contemplative text",
+        )
+        assert "My custom contemplative text" in player._system_prompt
+
+    def test_custom_prompt_text_ignored_for_baseline(self):
+        from ipd.llm_player import GAME_SYSTEM_PROMPT
+        player = LLMPlayer(
+            variant=PromptVariant.BASELINE,
+            custom_prompt_text="irrelevant",
+        )
+        assert player._system_prompt == GAME_SYSTEM_PROMPT
 
     def test_reset(self):
         player = LLMPlayer()
