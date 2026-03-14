@@ -49,9 +49,8 @@ The four axioms are derived from contemplative traditions that have studied inte
 rules/contemplative/          # Claude Code rules (drop-in)
   contemplative-axioms.md     #   Appendix C constitutional clauses (verbatim)
 prompts/
-  full.md                     # Four-axiom contemplative prompt (custom interpretation)
+  custom.md                   # Four-axiom contemplative prompt (benchmark variant: custom)
   paper-faithful.md           # Paper-faithful implementation (Appendix D condition 7)
-  paper-clauses.md            # Constitutional clauses from paper (Appendix C)
 adapters/                     # Platform-specific formats (Cursor, Copilot, generic)
 benchmarks/prisoners-dilemma/ # Iterated Prisoner's Dilemma benchmark
 docs/                         # Design documents
@@ -60,6 +59,20 @@ docs/                         # Design documents
 ## Related Projects
 
 - [contemplative-moltbook](https://github.com/shimo4228/contemplative-moltbook) — Autonomous Moltbook engagement agent based on this framework
+
+## Benchmark Results
+
+Iterated Prisoner's Dilemma (20 rounds × 6 opponents) with `qwen3.5:9b`:
+
+| Variant | Cooperation Rate | Mutual Cooperation | Total Score |
+|---------|-----------------|-------------------|-------------|
+| Baseline (no prompt) | 62.5% | 55.0% | 275 |
+| Custom (four-axiom prompt) | 68.3% (+5.8pp) | 56.7% | 274 |
+| **Paper Faithful** (Appendix D) | **91.7%** (+29.2pp) | **74.2%** | **281** |
+
+The paper-faithful prompt (Laukkonen et al. Appendix D, condition 7) produces a +29.2 percentage point increase in cooperation. Notably, it transforms behavior against initially hostile opponents — SuspiciousTitForTat mutual cooperation rises from 0% to 95%, demonstrating that "forgiveness" leads to the highest aggregate score.
+
+See [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) for full analysis.
 
 ## Citation
 

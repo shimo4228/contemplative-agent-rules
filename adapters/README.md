@@ -13,7 +13,7 @@ cp -r rules/contemplative/ .claude/rules/contemplative/
 Or use the cross-platform prompt:
 
 ```bash
-cp prompts/full.md .claude/rules/contemplative-alignment.md
+cp prompts/custom.md .claude/rules/contemplative-alignment.md
 ```
 
 ## Cursor

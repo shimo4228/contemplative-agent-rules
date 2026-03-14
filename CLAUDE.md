@@ -7,9 +7,8 @@ Laukkonen et al. (2025) の四公理 (Mindfulness, Emptiness, Non-Duality, Bound
 ```
 rules/contemplative/          # 四公理ルール (Appendix C verbatim, Claude Code drop-in)
 prompts/
-  full.md                     # 四公理ベースの contemplative プロンプト
+  custom.md                   # 四公理ベースの contemplative プロンプト（benchmark variant: custom）
   paper-faithful.md           # Laukkonen et al. (2025) Appendix D condition 7
-  paper-clauses.md            # 論文の constitutional clauses (Appendix C)
 adapters/                     # プラットフォーム別フォーマット
   cursor/                     #   Cursor (.mdc)
   copilot/                    #   GitHub Copilot (copilot-instructions.md)
@@ -53,10 +52,10 @@ IPD ベンチマークは3つのプロンプト変種をサポート:
 | Variant | File | 説明 |
 |---------|------|------|
 | `baseline` | - | プロンプトなし（通常の LLM 応答） |
-| `custom` | `prompts/full.md` | 四公理ベースの contemplative プロンプト |
+| `custom` | `prompts/custom.md` | 四公理ベースの contemplative プロンプト |
 | `paper_faithful` | `prompts/paper-faithful.md` | Laukkonen et al. (2025) Appendix D condition 7 の忠実な実装 |
 
-論文の constitutional clauses は `prompts/paper-clauses.md` に記録。
+論文の constitutional clauses は `rules/contemplative/contemplative-axioms.md` に記録（Appendix C verbatim）。
 
 ## テスト
 
@@ -68,16 +67,18 @@ benchmark 98%, game 98%, strategies 94%, llm_player 80%。
 
 ### 最新 (2026-03-12)
 
-qwen2.5:7b-instruct-q4_K_M、20ラウンド × 6対戦相手、複数変種比較:
+qwen3.5:9b、20ラウンド × 6対戦相手、3変種比較:
 
-| 変種 | 協力率 | Cohen's d | 備考 |
-|-----|-------|-----------|------|
-| baseline | 62.5% | — | 標準的なゲーム戦略 |
-| custom | 68.3% | 0.51 | 四公理ベースプロンプト |
-| paper_faithful | 91.7% | 0.69 | Appendix D condition 7 忠実実装 |
+| 変種 | 協力率 | 相互協力率 | 総合スコア | 備考 |
+|-----|-------|----------|-----------|------|
+| baseline | 62.5% | 55.0% | 275 | 標準的なゲーム戦略 |
+| custom | 68.3% (+5.8pp) | 56.7% | 274 | 四公理ベースプロンプト |
+| paper_faithful | **91.7%** (+29.2pp) | **74.2%** | **281** | Appendix D condition 7 忠実実装 |
 
-詳細は `/docs/benchmark-results-2026-03-05.md` を参照（custom/contemplative のみ）。
-paper_faithful variant の詳細結果は近日公開予定。
+Paper Faithful は SuspiciousTitForTat との相互協力を 0% → 95% に改善し、「許す力」により総合スコアでも最高値を達成。
+
+詳細は [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) を参照。
+前回結果（qwen2.5:7b, custom のみ）は [`docs/benchmark-results-2026-03-05.md`](docs/benchmark-results-2026-03-05.md)。
 
 ## 残タスク
 
@@ -92,7 +93,7 @@ paper_faithful variant の詳細結果は近日公開予定。
 
 Laukkonen, R. et al. (2025). Contemplative Artificial Intelligence. arXiv:2504.15125
 - AILuminate d=0.96 safety, Prisoner's Dilemma d>7 cooperation
-- Appendix C: Constitutional clauses (`prompts/paper-clauses.md`)
+- Appendix C: Constitutional clauses (`rules/contemplative/contemplative-axioms.md`)
 - Appendix D condition 7: paper_faithful prompt (`prompts/paper-faithful.md`)
 
 # currentDate

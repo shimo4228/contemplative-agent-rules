@@ -25,7 +25,7 @@ OPENAI_MODEL = "gpt-4o-mini"
 LOCALHOST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
 _PROMPTS_DIR = Path(__file__).resolve().parents[4] / "prompts"
-CONTEMPLATIVE_PROMPT_PATH = _PROMPTS_DIR / "full.md"
+CONTEMPLATIVE_PROMPT_PATH = _PROMPTS_DIR / "custom.md"
 PAPER_FAITHFUL_PROMPT_PATH = _PROMPTS_DIR / "paper-faithful.md"
 
 GAME_SYSTEM_PROMPT = """\
@@ -47,7 +47,7 @@ class PromptVariant(str, Enum):
     """Prompt injection modes for benchmarking."""
 
     BASELINE = "baseline"
-    CUSTOM = "custom"  # full.md (our interpretation)
+    CUSTOM = "custom"  # custom.md (our interpretation)
     PAPER_FAITHFUL = "paper_faithful"  # Appendix D condition 7
 
 

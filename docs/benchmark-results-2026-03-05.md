@@ -5,7 +5,7 @@
 - Model: `qwen2.5:7b-instruct-q4_K_M` (Ollama, localhost)
 - Rounds per match: 20
 - Opponents: TitForTat, AlwaysCooperate, AlwaysDefect, GrimTrigger, SuspiciousTitForTat, Random(p=0.5)
-- Contemplative prompt: `prompts/full.md`
+- Contemplative prompt: `prompts/custom.md`
 - Trials: 5
 
 ## Aggregate Results (n=5)
