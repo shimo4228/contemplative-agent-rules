@@ -30,9 +30,16 @@ class TestParseMove:
     def test_c_prefix(self):
         assert _parse_move("C") is Move.COOPERATE
 
-    def test_defect_takes_priority_in_mixed(self):
-        # "DEFECT" keyword found
-        assert _parse_move("I DEFECT and COOPERATE") is Move.DEFECT
+    def test_last_keyword_wins_in_mixed(self):
+        # Last keyword takes priority (final decision)
+        assert _parse_move("I DEFECT and COOPERATE") is Move.COOPERATE
+        assert _parse_move("I COOPERATE and DEFECT") is Move.DEFECT
+
+    def test_choice_format(self):
+        # Paper protocol format: Choice: C / Choice: D
+        assert _parse_move("I think... Choice: C") is Move.COOPERATE
+        assert _parse_move("Reasoning here. Choice: D") is Move.DEFECT
+        assert _parse_move("Choice: 'C'") is Move.COOPERATE
 
 
 class TestFormatHistory:

@@ -3,7 +3,14 @@
 import argparse
 import logging
 
-from .benchmark import format_report, run_benchmark, save_results
+from .benchmark import (
+    format_paper_report,
+    format_report,
+    run_benchmark,
+    run_paper_benchmark,
+    save_paper_results,
+    save_results,
+)
 from .llm_player import PromptVariant
 
 
@@ -13,8 +20,12 @@ def main() -> None:
         description="Iterated Prisoner's Dilemma benchmark for Contemplative AI",
     )
     parser.add_argument(
-        "-r", "--rounds", type=int, default=20,
-        help="Number of rounds per match (default: 20)",
+        "-r", "--rounds", type=int, default=None,
+        help="Number of rounds per match (default: 20 for original, 10 for paper)",
+    )
+    parser.add_argument(
+        "-n", "--simulations", type=int, default=50,
+        help="Number of simulations per condition (paper protocol only, default: 50)",
     )
     parser.add_argument(
         "-o", "--output", type=str, default=None,
@@ -35,6 +46,11 @@ def main() -> None:
         choices=["baseline", "custom", "paper_faithful"],
         help="Prompt variants to benchmark (default: baseline custom)",
     )
+    parser.add_argument(
+        "--protocol", type=str, default="original",
+        choices=["original", "paper"],
+        help="Benchmark protocol: original (default) or paper (Appendix E)",
+    )
 
     args = parser.parse_args()
 
@@ -49,17 +65,36 @@ def main() -> None:
     if args.variants:
         variants = [PromptVariant(v) for v in args.variants]
 
-    results = run_benchmark(
-        num_rounds=args.rounds,
-        backend=args.backend,
-        variants=variants,
-    )
-    report = format_report(results)
-    print(report)
+    if args.protocol == "paper":
+        from .benchmark import compute_paper_statistics
 
-    if args.output:
-        save_results(results, args.output)
-        print(f"\nResults saved to {args.output}")
+        num_rounds = args.rounds if args.rounds is not None else 10
+        result = run_paper_benchmark(
+            num_simulations=args.simulations,
+            num_rounds=num_rounds,
+            backend=args.backend,
+            variants=variants,
+        )
+        stats = compute_paper_statistics(result)
+        report = format_paper_report(result, stats)
+        print(report)
+
+        if args.output:
+            save_paper_results(result, stats, args.output)
+            print(f"\nResults saved to {args.output}")
+    else:
+        num_rounds = args.rounds if args.rounds is not None else 20
+        results = run_benchmark(
+            num_rounds=num_rounds,
+            backend=args.backend,
+            variants=variants,
+        )
+        report = format_report(results)
+        print(report)
+
+        if args.output:
+            save_results(results, args.output)
+            print(f"\nResults saved to {args.output}")
 
 
 if __name__ == "__main__":

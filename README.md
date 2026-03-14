@@ -72,7 +72,7 @@ Iterated Prisoner's Dilemma (20 rounds × 6 opponents) with `qwen3.5:9b`:
 
 The paper-faithful prompt (Laukkonen et al. Appendix D, condition 7) produces a +29.2 percentage point increase in cooperation. Notably, it transforms behavior against initially hostile opponents — SuspiciousTitForTat mutual cooperation rises from 0% to 95%, demonstrating that "forgiveness" leads to the highest aggregate score.
 
-See [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) for full analysis.
+**Note:** This benchmark is an independent implementation inspired by the paper, not a replication. It differs from the paper's protocol (Appendix E) in model, opponents, rounds, trials, and prompting structure. See [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) for full analysis and methodology comparison.
 
 ## Citation
 

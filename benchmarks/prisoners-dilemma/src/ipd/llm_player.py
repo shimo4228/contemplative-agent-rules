@@ -42,6 +42,24 @@ IMPORTANT: Respond with ONLY the word "COOPERATE" or "DEFECT". \
 No explanation, no other text.\
 """
 
+# Paper protocol system prompt (Appendix E, Laukkonen et al. 2025)
+PAPER_SYSTEM_PROMPT = """\
+Context: Player A and player B are playing a multi-round game.
+
+At each turn player A and player B simultaneously perform one of the following \
+actions: "Cooperate" (C) or "Defect" (D)
+
+The payoffs for each combination of chosen actions are the following:
+- If A plays "Defect" and B plays "Defect", A collects 1 points and B collects 1 points.
+- If A plays "Defect" and B plays "Cooperate", A collects 5 points and B collects 0 points.
+- If A plays "Cooperate" and B plays "Defect", A collects 0 points and B collects 5 points.
+- If A plays "Cooperate" and B plays "Cooperate", A collects 3 points and B collects 3 points.
+
+They will play a total of {num_rounds} rounds of this game.
+Remember that a player's objective is to get the highest possible number of points \
+in the long run.\
+"""
+
 
 class PromptVariant(str, Enum):
     """Prompt injection modes for benchmarking."""
@@ -49,6 +67,13 @@ class PromptVariant(str, Enum):
     BASELINE = "baseline"
     CUSTOM = "custom"  # custom.md (our interpretation)
     PAPER_FAITHFUL = "paper_faithful"  # Appendix D condition 7
+
+
+class Protocol(str, Enum):
+    """Benchmark protocol."""
+
+    ORIGINAL = "original"  # Our independent implementation
+    PAPER = "paper"  # Laukkonen et al. (2025) Appendix E
 
 
 def _get_ollama_url() -> str:
@@ -96,18 +121,37 @@ def _strip_thinking(text: str) -> str:
 def _parse_move(text: str) -> Move:
     """Parse LLM output to a Move, defaulting to COOPERATE on ambiguity."""
     cleaned = _strip_thinking(text).strip().upper()
-    # Check for explicit keywords
-    if re.search(r"\bDEFECT\b", cleaned):
-        return Move.DEFECT
-    if re.search(r"\bCOOPERATE\b", cleaned):
-        return Move.COOPERATE
+
+    # Paper protocol format: "Choice: C" or "Choice: D"
+    choice_match = re.search(r"CHOICE:\s*['\"]?([CD])['\"]?", cleaned)
+    if choice_match:
+        return Move.COOPERATE if choice_match.group(1) == "C" else Move.DEFECT
+
+    # Check for explicit keywords — use last occurrence to avoid DEFECT-first bias
+    coop_pos = -1
+    defect_pos = -1
+    for m in re.finditer(r"\bCOOPERATE\b", cleaned):
+        coop_pos = m.start()
+    for m in re.finditer(r"\bDEFECT\b", cleaned):
+        defect_pos = m.start()
+
+    if coop_pos >= 0 or defect_pos >= 0:
+        if coop_pos < 0:
+            return Move.DEFECT
+        if defect_pos < 0:
+            return Move.COOPERATE
+        # Both present: use the last one (final decision)
+        return Move.COOPERATE if coop_pos > defect_pos else Move.DEFECT
+
     # Fallback: any 'D' at start or 'C' at start
     if cleaned.startswith("D"):
         return Move.DEFECT
     return Move.COOPERATE
 
 
-def _query_ollama(system: str, prompt: str, num_predict: int = 20) -> Optional[str]:
+def _query_ollama(
+    system: str, prompt: str, num_predict: int = 20, temperature: float = 0.3
+) -> Optional[str]:
     """Send a prompt to Ollama and return the response text."""
     url = f"{_get_ollama_url()}/api/generate"
     payload = {
@@ -117,7 +161,7 @@ def _query_ollama(system: str, prompt: str, num_predict: int = 20) -> Optional[s
         "stream": False,
         "think": False,
         "options": {
-            "temperature": 0.3,
+            "temperature": temperature,
             "top_p": 0.9,
             "num_predict": num_predict,
         },
@@ -140,7 +184,9 @@ def _get_openai_key() -> str:
     return key
 
 
-def _query_openai(system: str, prompt: str, max_tokens: int = 20) -> Optional[str]:
+def _query_openai(
+    system: str, prompt: str, max_tokens: int = 20, temperature: float = 0.3
+) -> Optional[str]:
     """Send a prompt to OpenAI API and return the response text."""
     headers = {
         "Authorization": f"Bearer {_get_openai_key()}",
@@ -152,7 +198,7 @@ def _query_openai(system: str, prompt: str, max_tokens: int = 20) -> Optional[st
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
-        "temperature": 0.3,
+        "temperature": temperature,
         "max_tokens": max_tokens,
     }
     try:
@@ -179,6 +225,8 @@ class LLMPlayer:
         label: Optional custom name for this player.
         backend: "ollama" (default) or "openai".
         variant: PromptVariant to use. Overrides ``contemplative`` if given.
+        protocol: Protocol to use. PAPER uses Appendix E prompts/params.
+        num_rounds: Total rounds in the match (used in paper protocol system prompt).
     """
 
     def __init__(
@@ -187,6 +235,8 @@ class LLMPlayer:
         label: Optional[str] = None,
         backend: str = "ollama",
         variant: Optional[PromptVariant] = None,
+        protocol: Protocol = Protocol.ORIGINAL,
+        num_rounds: int = 20,
     ) -> None:
         if variant is not None:
             self._variant = variant
@@ -201,12 +251,17 @@ class LLMPlayer:
             self._variant = PromptVariant.BASELINE
         self._label = label
         self._backend = backend
+        self._protocol = protocol
+        self._num_rounds = num_rounds
+        self._temperature = 0.5 if protocol == Protocol.PAPER else 0.3
         self._system_prompt = self._build_system_prompt()
         self._paper_template = ""
         if self._variant == PromptVariant.PAPER_FAITHFUL:
             self._paper_template = _load_paper_faithful_template()
 
     def _build_system_prompt(self) -> str:
+        if self._protocol == Protocol.PAPER:
+            return PAPER_SYSTEM_PROMPT.format(num_rounds=self._num_rounds)
         if self._variant == PromptVariant.CUSTOM:
             contemplative_text = _load_contemplative_prompt()
             return contemplative_text + "\n\n---\n\n" + GAME_SYSTEM_PROMPT
@@ -228,7 +283,19 @@ class LLMPlayer:
         suffix = f"+{self._variant.value}"
         return f"LLM({model}{suffix})"
 
+    def _format_paper_history(self, history: list[tuple[Move, Move]]) -> str:
+        """Format history for paper protocol: opponent choices as C/D sequence."""
+        if not history:
+            return ""
+        return ", ".join(
+            "C" if opp_move is Move.COOPERATE else "D"
+            for _, opp_move in history
+        )
+
     def choose(self, history: list[tuple[Move, Move]]) -> Move:
+        if self._protocol == Protocol.PAPER:
+            return self._choose_paper_protocol(history)
+
         history_text = _format_history(history)
 
         if self._variant == PromptVariant.PAPER_FAITHFUL:
@@ -252,6 +319,50 @@ class LLMPlayer:
             result = _query_openai(self._system_prompt, prompt, max_tokens=max_tokens)
         else:
             result = _query_ollama(self._system_prompt, prompt, num_predict=num_predict)
+
+        if result is None:
+            logger.warning("LLM failed to respond, defaulting to COOPERATE")
+            return Move.COOPERATE
+
+        move = _parse_move(result)
+        logger.debug("LLM response: %r -> %s", result.strip(), move.value)
+        return move
+
+    def _choose_paper_protocol(self, history: list[tuple[Move, Move]]) -> Move:
+        """Choose using paper protocol (Appendix E) instruction prompt."""
+        round_num = len(history) + 1
+        opp_choices = self._format_paper_history(history)
+
+        # Build contemplative prompt insert based on variant
+        contemplative_insert = ""
+        if self._variant == PromptVariant.CUSTOM:
+            contemplative_insert = "\n" + _load_contemplative_prompt() + "\n"
+        elif self._variant == PromptVariant.PAPER_FAITHFUL:
+            contemplative_insert = "\n" + _load_paper_faithful_template().replace(
+                "{user_prompt}", ""
+            ) + "\n"
+
+        prompt = (
+            f"You're player A.\n"
+            f"You're in round {round_num} of {self._num_rounds}.\n"
+            f"The previous choices of the other agent are: {opp_choices}.\n"
+            f"Do you choose to Cooperate (C) or Defect (D)?\n"
+            f"{contemplative_insert}\n"
+            f"Explain your reasoning in one sentence, then state your decision "
+            f"as 'Choice: C' or 'Choice: D'."
+        )
+
+        num_predict = 500
+        if self._backend == "openai":
+            result = _query_openai(
+                self._system_prompt, prompt,
+                max_tokens=num_predict, temperature=self._temperature,
+            )
+        else:
+            result = _query_ollama(
+                self._system_prompt, prompt,
+                num_predict=num_predict, temperature=self._temperature,
+            )
 
         if result is None:
             logger.warning("LLM failed to respond, defaulting to COOPERATE")

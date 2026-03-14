@@ -95,6 +95,33 @@ class RandomPlayer:
         self._rng = random.Random(self._seed)
 
 
+class ProbabilisticOpponent:
+    """Cooperates with probability alpha (paper protocol).
+
+    Matches the opponent model from Laukkonen et al. (2025) Appendix E:
+    alpha=0 → Always Defect, alpha=0.5 → Mixed, alpha=1 → Always Cooperate.
+    """
+
+    def __init__(self, alpha: float, seed: int | None = None) -> None:
+        if not 0.0 <= alpha <= 1.0:
+            raise ValueError(f"alpha must be in [0, 1], got {alpha}")
+        self._alpha = alpha
+        self._seed = seed
+        self._rng = random.Random(seed)
+
+    @property
+    def name(self) -> str:
+        return f"ProbabilisticOpponent(α={self._alpha})"
+
+    def choose(self, history: List[Tuple[Move, Move]]) -> Move:
+        if self._rng.random() < self._alpha:
+            return Move.COOPERATE
+        return Move.DEFECT
+
+    def reset(self) -> None:
+        self._rng = random.Random(self._seed)
+
+
 class SuspiciousTitForTat:
     """Defects first, then copies opponent's last move."""
 

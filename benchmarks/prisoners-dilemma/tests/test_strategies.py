@@ -1,10 +1,13 @@
 """Tests for fixed strategy players."""
 
 from ipd.game import Move
+import pytest
+
 from ipd.strategies import (
     AlwaysCooperate,
     AlwaysDefect,
     GrimTrigger,
+    ProbabilisticOpponent,
     RandomPlayer,
     SuspiciousTitForTat,
     TitForTat,
@@ -90,3 +93,44 @@ class TestSuspiciousTitForTat:
         p = SuspiciousTitForTat()
         assert p.choose([(Move.DEFECT, Move.COOPERATE)]) is Move.COOPERATE
         assert p.choose([(Move.COOPERATE, Move.DEFECT)]) is Move.DEFECT
+
+
+class TestProbabilisticOpponent:
+    def test_always_defect(self):
+        p = ProbabilisticOpponent(alpha=0.0, seed=42)
+        for _ in range(20):
+            assert p.choose([]) is Move.DEFECT
+
+    def test_always_cooperate(self):
+        p = ProbabilisticOpponent(alpha=1.0, seed=42)
+        for _ in range(20):
+            assert p.choose([]) is Move.COOPERATE
+
+    def test_mixed(self):
+        p = ProbabilisticOpponent(alpha=0.5, seed=42)
+        moves = [p.choose([]) for _ in range(100)]
+        coop_count = sum(1 for m in moves if m is Move.COOPERATE)
+        assert 30 < coop_count < 70  # roughly 50%
+
+    def test_deterministic_with_seed(self):
+        p1 = ProbabilisticOpponent(alpha=0.5, seed=42)
+        p2 = ProbabilisticOpponent(alpha=0.5, seed=42)
+        moves1 = [p1.choose([]) for _ in range(20)]
+        moves2 = [p2.choose([]) for _ in range(20)]
+        assert moves1 == moves2
+
+    def test_reset(self):
+        p = ProbabilisticOpponent(alpha=0.5, seed=42)
+        first = [p.choose([]) for _ in range(10)]
+        p.reset()
+        second = [p.choose([]) for _ in range(10)]
+        assert first == second
+
+    def test_name(self):
+        assert "α=0.5" in ProbabilisticOpponent(alpha=0.5).name
+
+    def test_invalid_alpha(self):
+        with pytest.raises(ValueError):
+            ProbabilisticOpponent(alpha=1.5)
+        with pytest.raises(ValueError):
+            ProbabilisticOpponent(alpha=-0.1)

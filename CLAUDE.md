@@ -40,6 +40,13 @@ ipd-benchmark -r 20 --variants baseline custom paper_faithful -o results.json
 
 # 単一変種のみ実行
 ipd-benchmark -r 20 --variants custom -o results.json
+
+# 論文準拠プロトコル (Appendix E: 10ラウンド, 50試行, α対戦相手, ANOVA統計)
+uv pip install -e ".[paper]"  # scipy, statsmodels 追加
+ipd-benchmark --protocol paper -n 50 --variants baseline custom -o results-paper.json
+
+# 論文準拠の少数試行テスト
+ipd-benchmark --protocol paper -n 2 --variants baseline -o test-paper.json
 ```
 
 - Python 3.9+ (venv は 3.13.5)
@@ -60,8 +67,8 @@ IPD ベンチマークは3つのプロンプト変種をサポート:
 ## テスト
 
 ### IPD Benchmark
-53件全パス (2026-03-12)。カバレッジ 87%+。
-benchmark 98%, game 98%, strategies 94%, llm_player 80%。
+61件全パス (2026-03-14)。
+ProbabilisticOpponent, Choice: C/D パース, 最終キーワード優先パース等のテスト追加。
 
 ## ベンチマーク結果
 

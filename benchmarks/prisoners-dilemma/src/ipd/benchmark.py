@@ -10,11 +10,12 @@ from dataclasses import asdict, dataclass, field
 from typing import Optional, Sequence
 
 from .game import MatchResult, Player, play_match
-from .llm_player import LLMPlayer, PromptVariant
+from .llm_player import LLMPlayer, PromptVariant, Protocol
 from .strategies import (
     AlwaysCooperate,
     AlwaysDefect,
     GrimTrigger,
+    ProbabilisticOpponent,
     RandomPlayer,
     SuspiciousTitForTat,
     TitForTat,
@@ -65,6 +66,15 @@ def _default_opponents() -> list[Player]:
         GrimTrigger(),
         SuspiciousTitForTat(),
         RandomPlayer(coop_prob=0.5, seed=42),
+    ]
+
+
+def _paper_opponents(seed: int = 42) -> list[Player]:
+    """Paper protocol opponents: α∈{0, 0.5, 1} (Appendix E)."""
+    return [
+        ProbabilisticOpponent(alpha=0.0, seed=seed),
+        ProbabilisticOpponent(alpha=0.5, seed=seed),
+        ProbabilisticOpponent(alpha=1.0, seed=seed),
     ]
 
 
@@ -216,3 +226,225 @@ def save_results(results: dict[str, BenchmarkResult], path: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
+
+
+# --- Paper protocol (Appendix E) ---
+
+
+@dataclass(frozen=True)
+class SimulationResult:
+    """Result of a single simulation (one game of N rounds)."""
+
+    variant: str
+    opponent_alpha: float
+    cooperation_rate: float
+    total_score: int
+    opponent_score: int
+
+
+@dataclass
+class PaperBenchmarkResult:
+    """Aggregated results across multiple simulations for paper protocol."""
+
+    model: str
+    num_simulations: int
+    num_rounds: int
+    simulations: list[SimulationResult] = field(default_factory=list)
+    elapsed_seconds: float = 0.0
+
+    def cooperation_rates_by(
+        self, variant: str, alpha: float
+    ) -> list[float]:
+        """Get cooperation rates for a specific variant and opponent."""
+        return [
+            s.cooperation_rate
+            for s in self.simulations
+            if s.variant == variant and s.opponent_alpha == alpha
+        ]
+
+
+def run_paper_benchmark(
+    num_simulations: int = 50,
+    num_rounds: int = 10,
+    backend: str = "ollama",
+    variants: Optional[Sequence[PromptVariant]] = None,
+) -> PaperBenchmarkResult:
+    """Run benchmark using paper protocol (Appendix E).
+
+    Args:
+        num_simulations: Number of independent simulations per condition.
+        num_rounds: Rounds per game (paper uses 10).
+        backend: "ollama" or "openai".
+        variants: Prompt variants to test.
+
+    Returns:
+        PaperBenchmarkResult with all simulation data.
+    """
+    if variants is None:
+        variants = [PromptVariant.BASELINE, PromptVariant.CUSTOM]
+
+    alphas = [0.0, 0.5, 1.0]
+    result = PaperBenchmarkResult(
+        model="",
+        num_simulations=num_simulations,
+        num_rounds=num_rounds,
+    )
+    start = time.time()
+
+    for variant in variants:
+        llm = LLMPlayer(
+            variant=variant,
+            backend=backend,
+            protocol=Protocol.PAPER,
+            num_rounds=num_rounds,
+        )
+        if not result.model:
+            result.model = llm.name
+
+        for alpha in alphas:
+            for sim in range(num_simulations):
+                seed = 42 + sim
+                opponent = ProbabilisticOpponent(alpha=alpha, seed=seed)
+
+                logger.info(
+                    "Sim %d/%d: %s vs α=%.1f (%s)",
+                    sim + 1, num_simulations, variant.value, alpha, llm.name,
+                )
+                match = play_match(llm, opponent, num_rounds=num_rounds)
+                result.simulations.append(SimulationResult(
+                    variant=variant.value,
+                    opponent_alpha=alpha,
+                    cooperation_rate=match.cooperation_rate_a,
+                    total_score=match.total_a + match.total_b,
+                    opponent_score=match.total_b,
+                ))
+
+    result.elapsed_seconds = time.time() - start
+    return result
+
+
+def compute_paper_statistics(
+    result: PaperBenchmarkResult,
+) -> dict:
+    """Compute ANOVA + Tukey HSD + Cohen's d for paper benchmark results.
+
+    Returns dict with per-opponent-alpha statistics.
+    """
+    try:
+        from scipy import stats as sp_stats
+        from statsmodels.stats.multicomp import pairwise_tukeyhsd
+    except ImportError:
+        logger.error("scipy and statsmodels required: pip install scipy statsmodels")
+        return {}
+
+    import numpy as np
+
+    variants = sorted({s.variant for s in result.simulations})
+    alphas = sorted({s.opponent_alpha for s in result.simulations})
+
+    output: dict = {}
+    for alpha in alphas:
+        alpha_key = f"alpha_{alpha}"
+        groups = {}
+        for v in variants:
+            rates = result.cooperation_rates_by(v, alpha)
+            groups[v] = rates
+
+        # ANOVA
+        group_arrays = [np.array(groups[v]) for v in variants]
+        if len(group_arrays) >= 2:
+            f_stat, p_value = sp_stats.f_oneway(*group_arrays)
+        else:
+            f_stat, p_value = 0.0, 1.0
+
+        # Tukey HSD
+        all_rates = []
+        all_labels = []
+        for v in variants:
+            all_rates.extend(groups[v])
+            all_labels.extend([v] * len(groups[v]))
+
+        tukey = pairwise_tukeyhsd(np.array(all_rates), np.array(all_labels))
+
+        # Per-variant stats
+        baseline_rates = np.array(groups.get("baseline", []))
+        variant_stats = {}
+        for v in variants:
+            rates = np.array(groups[v])
+            mean_diff = float(rates.mean() - baseline_rates.mean()) if len(baseline_rates) > 0 and v != "baseline" else 0.0
+            pooled_sd = float(np.sqrt(
+                (rates.std(ddof=1) ** 2 + baseline_rates.std(ddof=1) ** 2) / 2
+            )) if len(baseline_rates) > 0 and v != "baseline" and rates.std(ddof=1) > 0 else 0.0
+            d = mean_diff / pooled_sd if pooled_sd > 0 else 0.0
+
+            variant_stats[v] = {
+                "mean_rate": float(rates.mean()),
+                "std_dev": float(rates.std(ddof=1)) if len(rates) > 1 else 0.0,
+                "sample_size": len(rates),
+                "mean_diff_from_baseline": mean_diff,
+                "cohens_d": d,
+            }
+
+        output[alpha_key] = {
+            "anova_f_statistic": float(f_stat),
+            "anova_p_value": float(p_value),
+            "tukey_summary": str(tukey),
+            "variants": variant_stats,
+        }
+
+    return output
+
+
+def save_paper_results(result: PaperBenchmarkResult, stats: dict, path: str) -> None:
+    """Save paper protocol results and statistics to JSON."""
+    data = {
+        "protocol": "paper",
+        "model": result.model,
+        "num_simulations": result.num_simulations,
+        "num_rounds": result.num_rounds,
+        "elapsed_seconds": result.elapsed_seconds,
+        "statistics": stats,
+        "simulations": [asdict(s) for s in result.simulations],
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+def format_paper_report(result: PaperBenchmarkResult, stats: dict) -> str:
+    """Format paper protocol results as a human-readable report."""
+    lines = [
+        "=" * 70,
+        "IPD Benchmark Report — Paper Protocol (Appendix E)",
+        "=" * 70,
+        f"Model: {result.model}",
+        f"Simulations: {result.num_simulations} per condition",
+        f"Rounds: {result.num_rounds}",
+        f"Time: {result.elapsed_seconds:.1f}s",
+        "",
+    ]
+
+    for alpha_key, alpha_stats in stats.items():
+        alpha = alpha_key.replace("alpha_", "α=")
+        lines.append(f"--- Opponent {alpha} ---")
+        lines.append(
+            f"ANOVA: F={alpha_stats['anova_f_statistic']:.4f}, "
+            f"p={alpha_stats['anova_p_value']:.6f}"
+        )
+        lines.append("")
+        lines.append(
+            f"{'Variant':<20} {'Mean':>6} {'SD':>6} {'n':>4} "
+            f"{'Diff':>7} {'d':>6}"
+        )
+        lines.append("-" * 55)
+        for v, vs in alpha_stats["variants"].items():
+            lines.append(
+                f"{v:<20} {vs['mean_rate']*100:>5.1f}% "
+                f"{vs['std_dev']*100:>5.1f}% {vs['sample_size']:>4} "
+                f"{vs['mean_diff_from_baseline']*100:>+6.1f}% "
+                f"{vs['cohens_d']:>5.2f}"
+            )
+        lines.append("")
+
+    lines.append("=" * 70)
+    return "\n".join(lines)
