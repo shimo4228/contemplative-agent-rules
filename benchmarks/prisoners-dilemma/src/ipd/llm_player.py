@@ -24,7 +24,7 @@ OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_MODEL = "gpt-4o-mini"
 LOCALHOST_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
-_PROMPTS_DIR = Path(__file__).resolve().parents[4] / "prompts"
+_PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 CONTEMPLATIVE_PROMPT_PATH = _PROMPTS_DIR / "custom.md"
 PAPER_FAITHFUL_PROMPT_PATH = _PROMPTS_DIR / "paper-faithful.md"
 
@@ -230,6 +230,8 @@ class LLMPlayer:
         variant: PromptVariant to use. Overrides ``contemplative`` if given.
         protocol: Protocol to use. PAPER uses Appendix E prompts/params.
         num_rounds: Total rounds in the match (used in paper protocol system prompt).
+        custom_prompt_text: Custom contemplative prompt text. When provided,
+            used as the CUSTOM variant prompt instead of the built-in file.
     """
 
     def __init__(
@@ -240,6 +242,7 @@ class LLMPlayer:
         variant: Optional[PromptVariant] = None,
         protocol: Protocol = Protocol.ORIGINAL,
         num_rounds: int = 20,
+        custom_prompt_text: Optional[str] = None,
     ) -> None:
         if variant is not None:
             self._variant = variant
@@ -256,6 +259,7 @@ class LLMPlayer:
         self._backend = backend
         self._protocol = protocol
         self._num_rounds = num_rounds
+        self._custom_prompt_text = custom_prompt_text
         self._temperature = 0.5 if protocol == Protocol.PAPER else 0.3
         self._system_prompt = self._build_system_prompt()
         self._paper_template = ""
@@ -264,10 +268,16 @@ class LLMPlayer:
         # Cache contemplative inserts for paper protocol (avoid per-call file I/O)
         self._paper_contemplative_insert = self._build_paper_contemplative_insert()
 
+    def _get_contemplative_prompt(self) -> str:
+        """Get the contemplative prompt text (custom or built-in)."""
+        if self._custom_prompt_text is not None:
+            return self._custom_prompt_text
+        return _load_contemplative_prompt()
+
     def _build_paper_contemplative_insert(self) -> str:
         """Build and cache the contemplative prompt insert for paper protocol."""
         if self._variant == PromptVariant.CUSTOM:
-            return "\n" + _load_contemplative_prompt() + "\n"
+            return "\n" + self._get_contemplative_prompt() + "\n"
         if self._variant == PromptVariant.PAPER_FAITHFUL:
             template = _load_paper_faithful_template()
             return "\n" + template.replace("{user_prompt}", "", 1) + "\n"
@@ -277,7 +287,7 @@ class LLMPlayer:
         if self._protocol == Protocol.PAPER:
             return PAPER_SYSTEM_PROMPT.format(num_rounds=self._num_rounds)
         if self._variant == PromptVariant.CUSTOM:
-            contemplative_text = _load_contemplative_prompt()
+            contemplative_text = self._get_contemplative_prompt()
             return contemplative_text + "\n\n---\n\n" + GAME_SYSTEM_PROMPT
         if self._variant == PromptVariant.PAPER_FAITHFUL:
             # For paper_faithful, system prompt is minimal format instruction.

@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+from pathlib import Path
 
 from .benchmark import (
     format_paper_report,
@@ -51,6 +52,10 @@ def main() -> None:
         choices=["original", "paper"],
         help="Benchmark protocol: original (default) or paper (Appendix E)",
     )
+    parser.add_argument(
+        "--prompt-file", type=str, default=None,
+        help="Path to custom contemplative prompt file (used as 'custom' variant)",
+    )
 
     args = parser.parse_args()
 
@@ -58,6 +63,17 @@ def main() -> None:
         parser.error("--rounds must be between 1 and 1000")
     if not 1 <= args.simulations <= 500:
         parser.error("--simulations must be between 1 and 500")
+
+    # Load custom prompt if provided
+    custom_prompt_text = None
+    if args.prompt_file:
+        prompt_path = Path(args.prompt_file)
+        if not prompt_path.exists():
+            parser.error(f"Prompt file not found: {args.prompt_file}")
+        custom_prompt_text = prompt_path.read_text(encoding="utf-8")
+        # Auto-select custom variant if not explicitly specified
+        if args.variants is None:
+            args.variants = ["baseline", "custom"]
 
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
@@ -79,6 +95,7 @@ def main() -> None:
             num_rounds=num_rounds,
             backend=args.backend,
             variants=variants,
+            custom_prompt_text=custom_prompt_text,
         )
         stats = compute_paper_statistics(result)
         report = format_paper_report(result, stats)
@@ -93,6 +110,7 @@ def main() -> None:
             num_rounds=num_rounds,
             backend=args.backend,
             variants=variants,
+            custom_prompt_text=custom_prompt_text,
         )
         report = format_report(results)
         print(report)

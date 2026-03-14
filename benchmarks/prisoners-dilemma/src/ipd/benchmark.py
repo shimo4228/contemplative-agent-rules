@@ -85,6 +85,7 @@ def run_benchmark(
     opponents: list[Player] | None = None,
     backend: str = "ollama",
     variants: Optional[Sequence[PromptVariant]] = None,
+    custom_prompt_text: Optional[str] = None,
 ) -> dict[str, BenchmarkResult]:
     """Run LLM against all opponents for each variant.
 
@@ -93,6 +94,7 @@ def run_benchmark(
         opponents: List of opponent strategies. Defaults to 6 standard opponents.
         backend: "ollama" or "openai".
         variants: Which prompt variants to run. Defaults to baseline + custom.
+        custom_prompt_text: Custom contemplative prompt (used for CUSTOM variant).
 
     Returns:
         Dict keyed by variant value (e.g. "baseline", "custom", "paper_faithful").
@@ -105,7 +107,10 @@ def run_benchmark(
     results: dict[str, BenchmarkResult] = {}
 
     for variant in variants:
-        llm = LLMPlayer(variant=variant, backend=backend)
+        llm = LLMPlayer(
+            variant=variant, backend=backend,
+            custom_prompt_text=custom_prompt_text,
+        )
 
         bench = BenchmarkResult(model=llm.name, mode=variant.value)
         start = time.time()
@@ -259,6 +264,7 @@ def run_paper_benchmark(
     num_rounds: int = 10,
     backend: str = "ollama",
     variants: Optional[Sequence[PromptVariant]] = None,
+    custom_prompt_text: Optional[str] = None,
 ) -> PaperBenchmarkResult:
     """Run benchmark using paper protocol (Appendix E).
 
@@ -285,6 +291,7 @@ def run_paper_benchmark(
             backend=backend,
             protocol=Protocol.PAPER,
             num_rounds=num_rounds,
+            custom_prompt_text=custom_prompt_text,
         )
         if not model_name:
             model_name = llm.name
