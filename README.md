@@ -76,6 +76,11 @@ See [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.m
 
 ## Citation
 
+Laukkonen, R., Inglis, F., Chandaria, S., Sandved-Smith, L., Lopez-Sola, E., Hohwy, J., Gold, J., & Elwood, A. (2025). Contemplative Artificial Intelligence. [arXiv:2504.15125](https://arxiv.org/abs/2504.15125)
+
+<details>
+<summary>BibTeX</summary>
+
 ```bibtex
 @article{laukkonen2025contemplative,
   title={Contemplative Artificial Intelligence},
@@ -84,6 +89,8 @@ See [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.m
   year={2025}
 }
 ```
+
+</details>
 
 ## License
 
