@@ -12,19 +12,36 @@ Based on [Laukkonen et al. (2025) "Contemplative AI"](https://arxiv.org/abs/2504
 
 ### Claude Code
 
-```bash
-# One-liner install
-./install.sh
+If you have [Claude Code](https://docs.anthropic.com/en/docs/claude-code), just paste this repo URL and let it install:
 
-# Or manually
-cp -r rules/contemplative ~/.claude/rules/contemplative
+```
+https://github.com/shimo4228/contemplative-agent-rules
+```
+
+Or install manually:
+
+```bash
+git clone https://github.com/shimo4228/contemplative-agent-rules.git
+cp -r contemplative-agent-rules/rules/contemplative ~/.claude/rules/contemplative
 ```
 
 Restart Claude Code. The rules are automatically loaded.
 
-### Other Agents
+### Other Agents (Cursor, Copilot, etc.)
 
 Copy the content from `rules/contemplative/contemplative-axioms.md` into your agent's system prompt, or use the adapter files in `adapters/` for platform-specific formats.
+
+### Benchmark Your Own Prompts
+
+Test any contemplative/ethical prompt on the Iterated Prisoner's Dilemma:
+
+```bash
+cd benchmarks/prisoners-dilemma
+pip install -e ".[paper]"
+ipd-benchmark --prompt-file your-prompt.md --protocol paper -n 10
+```
+
+See [`benchmarks/prisoners-dilemma/README.md`](benchmarks/prisoners-dilemma/README.md) for full documentation.
 
 ## The Four Axioms
 

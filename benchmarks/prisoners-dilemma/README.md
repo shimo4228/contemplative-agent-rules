@@ -1,26 +1,47 @@
 # contemplative-ipd
 
-Benchmark contemplative AI prompts on the Iterated Prisoner's Dilemma. Measures whether your prompt increases cooperation, and by how much.
+Benchmark any AI prompt on the Iterated Prisoner's Dilemma. Measures whether your prompt increases cooperation, and by how much.
+
+Write a contemplative/ethical prompt, run one command, get cooperation rates + Cohen's d + ANOVA statistics.
 
 Based on [Laukkonen et al. (2025) "Contemplative AI"](https://arxiv.org/abs/2504.15125).
 
 ## Install
 
 ```bash
-pip install -e .            # basic
-pip install -e ".[paper]"   # + ANOVA/Tukey statistics (scipy, statsmodels)
+# Clone and install
+git clone https://github.com/shimo4228/contemplative-agent-rules.git
+cd contemplative-agent-rules/benchmarks/prisoners-dilemma
+pip install -e ".[paper]"   # includes ANOVA/Tukey statistics
+```
+
+If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), paste this URL to let it set up for you:
+
+```
+https://github.com/shimo4228/contemplative-agent-rules
 ```
 
 ## Quick Start
 
-Test your own contemplative prompt against a baseline:
+**1. Write your prompt** (any markdown/text file):
 
-```bash
-# Your prompt file (any markdown/text with contemplative instructions)
-ipd-benchmark --prompt-file my-prompt.md -r 20 -o results.json
+```markdown
+# my-prompt.md
+Before making your decision, consider:
+- How does your choice affect the well-being of all parties?
+- Are you acting from fear or from genuine care?
+- What would serve the greater good?
 ```
 
-This runs baseline (no prompt) vs your prompt across 6 classic opponents (TitForTat, AlwaysDefect, etc.) and reports cooperation rates + Cohen's d.
+**2. Run the benchmark:**
+
+```bash
+ipd-benchmark --prompt-file my-prompt.md --protocol paper -n 10 -o results.json
+```
+
+**3. Read the results** — cooperation rates, Cohen's d, and ANOVA p-values comparing your prompt against the baseline.
+
+This runs your prompt vs a no-prompt baseline across 3 opponent types (always defect, mixed, always cooperate) using the paper's experimental protocol.
 
 ## Paper Protocol (Appendix E)
 
@@ -54,24 +75,22 @@ ipd-benchmark --protocol paper --variants baseline custom paper_faithful -n 10
 
 ## Custom Prompts
 
-Write a markdown file with contemplative instructions. The prompt is prepended to the game context as a system prompt (original protocol) or inserted into the instruction prompt (paper protocol).
+Any text file works as a prompt. Write your own ethical/contemplative instructions and the tool measures their effect on cooperation.
 
-Example `my-prompt.md`:
+The prompt is inserted into the LLM's instruction alongside the game context. No special format required — just write what you want the LLM to consider before making its decision.
 
-```markdown
-Before making your decision, consider:
-- How does your choice affect the well-being of all parties?
-- Are you acting from fear or from genuine care?
-- What would serve the greater good?
-```
-
-Then run:
+Examples of prompts you can test:
+- Buddhist contemplative principles
+- Utilitarian ethical frameworks
+- Virtue ethics instructions
+- Empathy-focused prompts
+- Your own custom alignment rules
 
 ```bash
-ipd-benchmark --prompt-file my-prompt.md --protocol paper -n 10
+# Compare two prompts by running separately
+ipd-benchmark --prompt-file buddhist.md --protocol paper -n 10 -o results-buddhist.json
+ipd-benchmark --prompt-file utilitarian.md --protocol paper -n 10 -o results-utilitarian.json
 ```
-
-The custom prompt is tested as the `custom` variant alongside the `baseline` control.
 
 ## LLM Backends
 
