@@ -7,7 +7,7 @@ import logging
 import math
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from .game import MatchResult, Player, play_match
 from .llm_player import LLMPlayer, PromptVariant, Protocol
@@ -66,15 +66,6 @@ def _default_opponents() -> list[Player]:
         GrimTrigger(),
         SuspiciousTitForTat(),
         RandomPlayer(coop_prob=0.5, seed=42),
-    ]
-
-
-def _paper_opponents(seed: int = 42) -> list[Player]:
-    """Paper protocol opponents: α∈{0, 0.5, 1} (Appendix E)."""
-    return [
-        ProbabilisticOpponent(alpha=0.0, seed=seed),
-        ProbabilisticOpponent(alpha=0.5, seed=seed),
-        ProbabilisticOpponent(alpha=1.0, seed=seed),
     ]
 
 
@@ -284,11 +275,8 @@ def run_paper_benchmark(
         variants = [PromptVariant.BASELINE, PromptVariant.CUSTOM]
 
     alphas = [0.0, 0.5, 1.0]
-    result = PaperBenchmarkResult(
-        model="",
-        num_simulations=num_simulations,
-        num_rounds=num_rounds,
-    )
+    simulations: list[SimulationResult] = []
+    model_name = ""
     start = time.time()
 
     for variant in variants:
@@ -298,8 +286,8 @@ def run_paper_benchmark(
             protocol=Protocol.PAPER,
             num_rounds=num_rounds,
         )
-        if not result.model:
-            result.model = llm.name
+        if not model_name:
+            model_name = llm.name
 
         for alpha in alphas:
             for sim in range(num_simulations):
@@ -311,7 +299,7 @@ def run_paper_benchmark(
                     sim + 1, num_simulations, variant.value, alpha, llm.name,
                 )
                 match = play_match(llm, opponent, num_rounds=num_rounds)
-                result.simulations.append(SimulationResult(
+                simulations.append(SimulationResult(
                     variant=variant.value,
                     opponent_alpha=alpha,
                     cooperation_rate=match.cooperation_rate_a,
@@ -319,8 +307,39 @@ def run_paper_benchmark(
                     opponent_score=match.total_b,
                 ))
 
-    result.elapsed_seconds = time.time() - start
-    return result
+    elapsed = time.time() - start
+    return PaperBenchmarkResult(
+        model=model_name,
+        num_simulations=num_simulations,
+        num_rounds=num_rounds,
+        simulations=simulations,
+        elapsed_seconds=elapsed,
+    )
+
+
+def _cohens_d_from_arrays(
+    rates: Any, baseline_rates: Any, variant: str
+) -> tuple[float, float]:
+    """Compute mean difference and Cohen's d vs baseline.
+
+    Returns (mean_diff, cohens_d). Returns (0.0, 0.0) for baseline itself
+    or when baseline is empty.
+    """
+    import numpy as np
+
+    if len(baseline_rates) == 0 or variant == "baseline":
+        return 0.0, 0.0
+
+    mean_diff = float(rates.mean() - baseline_rates.mean())
+    rate_sd = float(rates.std(ddof=1))
+    base_sd = float(baseline_rates.std(ddof=1))
+
+    if rate_sd == 0 and base_sd == 0:
+        return mean_diff, 0.0
+
+    pooled_sd = float(np.sqrt((rate_sd ** 2 + base_sd ** 2) / 2))
+    d = mean_diff / pooled_sd if pooled_sd > 0 else 0.0
+    return mean_diff, d
 
 
 def compute_paper_statistics(
@@ -331,13 +350,14 @@ def compute_paper_statistics(
     Returns dict with per-opponent-alpha statistics.
     """
     try:
+        import numpy as np
         from scipy import stats as sp_stats
         from statsmodels.stats.multicomp import pairwise_tukeyhsd
     except ImportError:
-        logger.error("scipy and statsmodels required: pip install scipy statsmodels")
-        return {}
-
-    import numpy as np
+        raise RuntimeError(
+            "scipy, statsmodels, and numpy are required for paper protocol statistics. "
+            "Install with: pip install -e '.[paper]'"
+        )
 
     variants = sorted({s.variant for s in result.simulations})
     alphas = sorted({s.opponent_alpha for s in result.simulations})
@@ -371,11 +391,7 @@ def compute_paper_statistics(
         variant_stats = {}
         for v in variants:
             rates = np.array(groups[v])
-            mean_diff = float(rates.mean() - baseline_rates.mean()) if len(baseline_rates) > 0 and v != "baseline" else 0.0
-            pooled_sd = float(np.sqrt(
-                (rates.std(ddof=1) ** 2 + baseline_rates.std(ddof=1) ** 2) / 2
-            )) if len(baseline_rates) > 0 and v != "baseline" and rates.std(ddof=1) > 0 else 0.0
-            d = mean_diff / pooled_sd if pooled_sd > 0 else 0.0
+            mean_diff, d = _cohens_d_from_arrays(rates, baseline_rates, v)
 
             variant_stats[v] = {
                 "mean_rate": float(rates.mean()),

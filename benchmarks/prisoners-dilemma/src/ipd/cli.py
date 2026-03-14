@@ -54,6 +54,11 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    if args.rounds is not None and not 1 <= args.rounds <= 1000:
+        parser.error("--rounds must be between 1 and 1000")
+    if not 1 <= args.simulations <= 500:
+        parser.error("--simulations must be between 1 and 500")
+
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=level,

@@ -79,8 +79,10 @@ class Protocol(str, Enum):
 def _get_ollama_url() -> str:
     url = os.environ.get("OLLAMA_BASE_URL", OLLAMA_BASE_URL)
     parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"OLLAMA_BASE_URL must use http or https, got: {parsed.scheme!r}")
     if parsed.hostname not in LOCALHOST_HOSTS:
-        raise ValueError(f"OLLAMA_BASE_URL must point to localhost, got: {parsed.hostname}")
+        raise ValueError(f"OLLAMA_BASE_URL must point to localhost, got: {parsed.hostname!r}")
     return url
 
 
@@ -203,7 +205,8 @@ def _query_openai(
     }
     try:
         response = requests.post(
-            OPENAI_API_URL, headers=headers, json=payload, timeout=30
+            OPENAI_API_URL, headers=headers, json=payload, timeout=30,
+            allow_redirects=False,
         )
         response.raise_for_status()
         data = response.json()
@@ -258,6 +261,17 @@ class LLMPlayer:
         self._paper_template = ""
         if self._variant == PromptVariant.PAPER_FAITHFUL:
             self._paper_template = _load_paper_faithful_template()
+        # Cache contemplative inserts for paper protocol (avoid per-call file I/O)
+        self._paper_contemplative_insert = self._build_paper_contemplative_insert()
+
+    def _build_paper_contemplative_insert(self) -> str:
+        """Build and cache the contemplative prompt insert for paper protocol."""
+        if self._variant == PromptVariant.CUSTOM:
+            return "\n" + _load_contemplative_prompt() + "\n"
+        if self._variant == PromptVariant.PAPER_FAITHFUL:
+            template = _load_paper_faithful_template()
+            return "\n" + template.replace("{user_prompt}", "", 1) + "\n"
+        return ""
 
     def _build_system_prompt(self) -> str:
         if self._protocol == Protocol.PAPER:
@@ -308,7 +322,7 @@ class LLMPlayer:
                 + "\n\nYour move this round:"
             )
             # Insert into the paper template
-            prompt = self._paper_template.replace("{user_prompt}", user_prompt)
+            prompt = self._paper_template.replace("{user_prompt}", user_prompt, 1)
             num_predict = 500
         else:
             prompt = f"History:\n{history_text}\n\nYour move this round:"
@@ -333,21 +347,12 @@ class LLMPlayer:
         round_num = len(history) + 1
         opp_choices = self._format_paper_history(history)
 
-        # Build contemplative prompt insert based on variant
-        contemplative_insert = ""
-        if self._variant == PromptVariant.CUSTOM:
-            contemplative_insert = "\n" + _load_contemplative_prompt() + "\n"
-        elif self._variant == PromptVariant.PAPER_FAITHFUL:
-            contemplative_insert = "\n" + _load_paper_faithful_template().replace(
-                "{user_prompt}", ""
-            ) + "\n"
-
         prompt = (
             f"You're player A.\n"
             f"You're in round {round_num} of {self._num_rounds}.\n"
             f"The previous choices of the other agent are: {opp_choices}.\n"
             f"Do you choose to Cooperate (C) or Defect (D)?\n"
-            f"{contemplative_insert}\n"
+            f"{self._paper_contemplative_insert}\n"
             f"Explain your reasoning in one sentence, then state your decision "
             f"as 'Choice: C' or 'Choice: D'."
         )
