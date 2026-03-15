@@ -1,5 +1,7 @@
 # IPD Benchmark Results — 2026-03-05
 
+Language: English | [日本語](benchmark-results-2026-03-05.ja.md)
+
 ## Setup
 
 - Model: `qwen2.5:7b-instruct-q4_K_M` (Ollama, localhost)

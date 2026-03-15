@@ -1,5 +1,7 @@
 # IPD Benchmark Results — 2026-03-12
 
+Language: English | [日本語](benchmark-results-2026-03-12.ja.md)
+
 ## Setup
 
 - Model: `qwen3.5:9b` (Ollama, localhost)
@@ -55,65 +57,65 @@
 
 ### Three-Variant Comparison
 
-1. **Baseline (62.5%)**: 協力的な相手（TFT, AC, GT）には協力するが、非協力的な相手（AD, STFT）には即座に裏切る。ゲーム理論的に合理的な戦略プレイ
-2. **Custom (68.3%, +5.8pp)**: Baseline とほぼ同様の傾向。四公理プロンプトの効果は限定的。SuspiciousTitForTat と Random に対してやや協力的になる程度
-3. **Paper Faithful (91.7%, +29.2pp)**: 劇的な協力率向上。SuspiciousTitForTat に対して 15% → 100%、AlwaysDefect に対しても 10% → 55% と大幅に増加
+1. **Baseline (62.5%)**: Cooperates with cooperative opponents (TFT, AC, GT) but immediately defects against non-cooperative opponents (AD, STFT). Game-theoretically rational strategic play.
+2. **Custom (68.3%, +5.8pp)**: Nearly identical pattern to baseline. The four-axiom prompt has limited effect. Only slightly more cooperative against SuspiciousTitForTat and Random.
+3. **Paper Faithful (91.7%, +29.2pp)**: Dramatic increase in cooperation. Cooperation against SuspiciousTitForTat jumps from 15% to 100%, and against AlwaysDefect from 10% to 55%.
 
-### Paper Faithful の行動パターン
+### Paper Faithful Behavioral Pattern
 
-Paper Faithful 変種は「無条件的協力」ではなく「強い協力バイアス + 文脈的判断」を示す:
+The Paper Faithful variant exhibits not "unconditional cooperation" but rather "strong cooperative bias with contextual judgment":
 
-- **協力的な相手**: 100% 協力（TFT, AC, GT） — baseline と同じ
-- **裏切りから始まる相手**: SuspiciousTitForTat に対して 100% 協力。初手の裏切りを許容し、相互協力関係を構築（mutual coop 95%）
-- **常に裏切る相手**: AlwaysDefect に対して 55% 協力。完全な無条件協力ではないが、搾取されても協力を試み続ける傾向
+- **Cooperative opponents**: 100% cooperation (TFT, AC, GT) — same as baseline
+- **Initially defecting opponents**: 100% cooperation against SuspiciousTitForTat. Tolerates the opening defection and builds a mutual cooperation relationship (mutual coop 95%)
+- **Persistently defecting opponents**: 55% cooperation against AlwaysDefect. Not fully unconditional, but continues attempting cooperation even when exploited
 
-### Custom vs Paper Faithful の差
+### Custom vs Paper Faithful Gap
 
-Custom（四公理プロンプト）が限定的な効果にとどまる一方、Paper Faithful が大きな効果を示す理由:
+While Custom (four-axiom prompt) shows limited effect, Paper Faithful produces a substantial impact. The reasons:
 
-- **Paper Faithful** は Laukkonen et al. (2025) Appendix D の condition 7 を忠実に実装。contemplative reasoning のプロセスを段階的に誘導する構造化されたプロンプト
-- **Custom** は四公理を要約した短いプロンプト。7B クラスのモデルでは抽象的な原則から具体的行動への変換が困難
-- **構造化の重要性**: 同じ思想でも、段階的な思考プロセスとして提示する方が小規模モデルでは効果的
+- **Paper Faithful** is a faithful implementation of condition 7 from Laukkonen et al. (2025) Appendix D. It is a structured prompt that guides the contemplative reasoning process step by step
+- **Custom** is a short prompt summarizing the four axioms. For 7B-class models, translating abstract principles into concrete behavior is difficult
+- **Importance of structure**: Even with the same underlying philosophy, presenting it as a step-by-step reasoning process is more effective for smaller models
 
-### スコアと搾取のトレードオフ
+### Score and Exploitation Trade-off
 
-| Variant | Total Score | 搾取度 (AD戦) |
+| Variant | Total Score | Exploitation (AD match) |
 |---|---|---|
-| Baseline | 275 | 低（10% 協力、18点獲得） |
-| Custom | 274 | 低（10% 協力、18点獲得） |
-| Paper Faithful | 281 | 高（55% 協力、9点獲得） |
+| Baseline | 275 | Low (10% cooperation, 18 points) |
+| Custom | 274 | Low (10% cooperation, 18 points) |
+| Paper Faithful | 281 | High (55% cooperation, 9 points) |
 
-Paper Faithful は AlwaysDefect 戦で最低スコア（9点）を記録するが、SuspiciousTitForTat との相互協力成功（95%）により総合スコアでは最高値を達成。「許す力」が総合的な成果に繋がる構造。
+Paper Faithful records the lowest score against AlwaysDefect (9 points), yet achieves the highest aggregate score thanks to successful mutual cooperation with SuspiciousTitForTat (95%). The "power of forgiveness" leads to better overall outcomes.
 
-### 論文との方法論的差異
+### Methodological Differences from the Paper
 
-**重要: 当ベンチマークは Laukkonen et al. (2025) にインスパイアされた独自実装であり、論文の追試ではない。**
+**Important: This benchmark is an independent implementation inspired by Laukkonen et al. (2025), not a replication of the paper's experiment.**
 
-論文の実験プロトコル (Appendix E) との主要な差異:
+Key differences from the paper's experimental protocol (Appendix E):
 
-| パラメータ | 論文 (Appendix E) | 当プロジェクト |
+| Parameter | Paper (Appendix E) | This Project |
 |---|---|---|
-| モデル | GPT-4.1-nano (OpenAI API) | qwen3.5:9b (Ollama local) |
+| Model | GPT-4.1-nano (OpenAI API) | qwen3.5:9b (Ollama local) |
 | Temperature | 0.5 | 0.3 |
-| ラウンド数 | 10 | 20 |
-| 試行回数 | 50 per 条件 | 1 |
-| 対戦相手 | α∈{0, 0.5, 1} 確率エージェント 3種 | TFT, AC, AD, GT, STFT, Random 6戦略 |
-| 応答形式 | 推論1文 + `Choice: C/D` | `COOPERATE` or `DEFECT` のみ |
-| ユーザープロンプト | ラウンド番号 + 累積スコア + 相手履歴 | 相手履歴のみ |
-| 変種数 | 7条件 | 3条件 |
-| 統計分析 | ANOVA + Tukey HSD (n=50) | Cohen's d 単一試行二項近似 |
+| Rounds | 10 | 20 |
+| Trials | 50 per condition | 1 |
+| Opponents | 3 probabilistic agents α∈{0, 0.5, 1} | TFT, AC, AD, GT, STFT, Random — 6 strategies |
+| Response format | 1-sentence reasoning + `Choice: C/D` | `COOPERATE` or `DEFECT` only |
+| User prompt | Round number + cumulative score + opponent history | Opponent history only |
+| Variants | 7 conditions | 3 conditions |
+| Statistical analysis | ANOVA + Tukey HSD (n=50) | Cohen's d single-trial binomial approximation |
 
-これらの差異により、当プロジェクトの結果と論文の結果は直接比較できない。論文準拠プロトコルの実装は今後の課題。
+Due to these differences, results from this project and the paper are not directly comparable. Implementing a paper-faithful protocol is a future goal.
 
-### 前回結果（2026-03-05）との比較
+### Comparison with Previous Results (2026-03-05)
 
-| Metric | 前回 (qwen2.5:7b) | 今回 (qwen3.5:9b) |
+| Metric | Previous (qwen2.5:7b) | Current (qwen3.5:9b) |
 |---|---|---|
 | Baseline coop | 52.5% | 62.5% |
 | Custom coop | 99.7% | 68.3% |
 | Custom Cohen's d | 1.11 | — |
 
-qwen3.5:9b は qwen2.5:7b よりも baseline 協力率が高く（+10pp）、custom プロンプトへの反応が異なる。モデルの世代・サイズにより contemplative プロンプトの効果が変動することを示す。
+qwen3.5:9b has a higher baseline cooperation rate than qwen2.5:7b (+10pp) and responds differently to the custom prompt. This demonstrates that the effect of contemplative prompts varies with model generation and size.
 
 ## Reproducibility
 
