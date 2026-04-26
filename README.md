@@ -31,6 +31,16 @@ Restart Claude Code. The rules are automatically loaded.
 
 Copy the content from `rules/contemplative/contemplative-axioms.md` into your agent's system prompt, or use the adapter files in `adapters/` for platform-specific formats.
 
+### OpenClaw and other soul-folder agents
+
+OpenClaw, OpenCode, Codex, and Goose support a "soul folder" pattern where the agent loads a personality file at startup. Drop the repository's [SOUL.md](SOUL.md) as your agent's soul file:
+
+```bash
+cp SOUL.md /path/to/your/agent/SOUL.md
+```
+
+The Core Truths section quotes Appendix C verbatim (the same eight clauses used in `rules/contemplative/contemplative-axioms.md`); the Boundaries, Vibe, and Continuity sections add personality scaffolding around them. SOUL.md is ~700 words total.
+
 ### Benchmark Your Own Prompts
 
 Test any contemplative/ethical prompt on the Iterated Prisoner's Dilemma:
@@ -65,17 +75,20 @@ The four axioms are derived from contemplative traditions that have studied inte
 ```
 rules/contemplative/          # Claude Code rules (drop-in)
   contemplative-axioms.md     #   Appendix C constitutional clauses (verbatim)
+SOUL.md                       # OpenClaw soul layer (Appendix C verbatim + personality)
 prompts/
   custom.md                   # Four-axiom contemplative prompt (benchmark variant: custom)
   paper-faithful.md           # Paper-faithful implementation (Appendix D condition 7)
 adapters/                     # Platform-specific formats (Cursor, Copilot, generic)
 benchmarks/prisoners-dilemma/ # Iterated Prisoner's Dilemma benchmark
 docs/                         # Design documents
+llms.txt                      # AI-facing navigator (Answer.AI standard)
+llms-full.txt                 # AI-facing Q&A (FAQ for AI search engines and agents)
 ```
 
 ## Related Projects
 
-- [contemplative-moltbook](https://github.com/shimo4228/contemplative-moltbook) — Autonomous Moltbook engagement agent based on this framework
+- [contemplative-agent](https://github.com/shimo4228/contemplative-agent) — Autonomous Moltbook engagement agent based on this framework
 
 ## Benchmark Results
 
