@@ -118,6 +118,16 @@ The effect sizes (d=3–13) are directionally consistent with the paper's report
 
 See [`docs/benchmark-results-paper-protocol.md`](docs/benchmark-results-paper-protocol.md) for details.
 
+## Field Notes — Claude Code adoption
+
+After dropping these clauses into Claude Code's rules folder (alongside Python coding conventions and security rules) for about a month, I have a few practical observations worth recording. **These are impressionistic, not measured.**
+
+**Less rigid deterministic-vs-probabilistic framing.** Right after the clauses went in, Claude Code proposed a skill called [`skill-comply`](https://github.com/shimo4228/claude-skill-comply) with a design that interleaves scripts and natural-language prompts. Before that, it tended to stick with purely script-based processing and would not have proposed this kind of hybrid. Possible mechanism: Emptiness and Non-Duality loosening attachment to rigid procedural categories.
+
+**Smoother dialogue.** The usual stiffness in Claude's conversation loosened after adding the clauses, and new implementation ideas have surfaced through back-and-forth more readily. With Claude Code, where the implementation cost is low, what really determines output quality is aligning on ideas and intent — so dialogability with the coding agent is the binding constraint. The whole constitution seems to contribute here.
+
+These observations are a single adopter's qualitative impressions over roughly one month — quantitative measurement is left as future work. If you are curious, drop `rules/contemplative/contemplative-axioms.md` into your `~/.claude/rules/` and watch what changes over a few sessions.
+
 ## Citation
 
 Laukkonen, R., Inglis, F., Chandaria, S., Sandved-Smith, L., Lopez-Sola, E., Hohwy, J., Gold, J., & Elwood, A. (2025). Contemplative Artificial Intelligence. [arXiv:2504.15125](https://arxiv.org/abs/2504.15125)
