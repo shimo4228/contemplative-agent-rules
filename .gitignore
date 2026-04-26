@@ -35,8 +35,6 @@ credentials.json
 rate_state.json
 
 # Local docs (not pushed)
-docs/CODEMAPS/
-docs/Qwen LOG
 docs/research/
 
 # Benchmark results (generated)

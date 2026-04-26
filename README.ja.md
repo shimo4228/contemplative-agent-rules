@@ -12,12 +12,17 @@ Language: [English](README.md) | 日本語
 
 ### Claude Code
 
-```bash
-# ワンライナーインストール
-./install.sh
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) を使っている場合、このリポジトリの URL を貼り付けるだけでインストールが完了します:
 
-# または手動で
-cp -r rules/contemplative ~/.claude/rules/contemplative
+```
+https://github.com/shimo4228/contemplative-agent-rules
+```
+
+または手動で:
+
+```bash
+git clone https://github.com/shimo4228/contemplative-agent-rules.git
+cp -r contemplative-agent-rules/rules/contemplative ~/.claude/rules/contemplative
 ```
 
 Claude Code を再起動すると、ルールが自動的に読み込まれます。
@@ -64,10 +69,20 @@ prompts/
   paper-faithful.md           # 論文忠実な実装（Appendix D condition 7）
 adapters/                     # プラットフォーム別フォーマット（Cursor, Copilot, 汎用）
 benchmarks/prisoners-dilemma/ # 反復囚人のジレンマベンチマーク
-docs/                         # 設計ドキュメント
+docs/
+  adr/                        # 設計判断記録（Architecture Decision Records）
+  CODEMAPS/                   # アーキテクチャマップ（AI 向け、token-lean）
+  benchmark-results-*.md      # 公開ベンチマーク結果
 llms.txt                      # AI 向けナビゲーター（Answer.AI 標準）
 llms-full.txt                 # AI 向け Q&A（AI 検索エンジン・エージェント用 FAQ）
 ```
+
+## プロジェクトドキュメント
+
+- [docs/adr/](docs/adr/README.md) — 設計判断記録: layer 分離、verbatim 採用、prompt variants、Soul-folder layer などの判断 rationale
+- [docs/CODEMAPS/architecture.md](docs/CODEMAPS/architecture.md) — トップレベルの layer マップ（rules / SOUL / benchmark / docs）と採用パス
+- [docs/CODEMAPS/benchmark.md](docs/CODEMAPS/benchmark.md) — IPD benchmark のモジュールマップ（型、戦略、2 protocol modes、バックエンド）
+- [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md) — rules layer での compliance 測定 (25%) と Soul layer の IPD 検証 (91.7%) の比較。layer 分離の retrospective 検証
 
 ## Field Notes — Claude Code に入れてみた効果
 

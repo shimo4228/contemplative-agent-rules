@@ -81,10 +81,20 @@ prompts/
   paper-faithful.md           # Paper-faithful implementation (Appendix D condition 7)
 adapters/                     # Platform-specific formats (Cursor, Copilot, generic)
 benchmarks/prisoners-dilemma/ # Iterated Prisoner's Dilemma benchmark
-docs/                         # Design documents
+docs/
+  adr/                        # Architecture Decision Records (why each design choice)
+  CODEMAPS/                   # Architecture maps (token-lean for AI consumption)
+  benchmark-results-*.md      # Public benchmark results
 llms.txt                      # AI-facing navigator (Answer.AI standard)
 llms-full.txt                 # AI-facing Q&A (FAQ for AI search engines and agents)
 ```
+
+## Project Documentation
+
+- [docs/adr/](docs/adr/README.md) — Architecture Decision Records: rationale behind layer separation, verbatim adoption, prompt variants, and Soul-folder layer
+- [docs/CODEMAPS/architecture.md](docs/CODEMAPS/architecture.md) — Top-level layer map (rules / SOUL / benchmark / docs) and adoption paths
+- [docs/CODEMAPS/benchmark.md](docs/CODEMAPS/benchmark.md) — IPD benchmark module map (types, strategies, two protocol modes, backends)
+- [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md) — Compliance measurement of the rules layer (25%) vs IPD validation of the Soul layer (91.7%) — retrospective justification for the layer split
 
 ## Related Projects
 

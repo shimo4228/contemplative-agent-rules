@@ -2,25 +2,11 @@
 
 Laukkonen et al. (2025) の四公理 (Mindfulness, Emptiness, Non-Duality, Boundless Care) に基づく AI alignment ルール。
 
-## 構造
-
-```
-rules/contemplative/          # 四公理ルール (Appendix C verbatim, Claude Code drop-in)
-prompts/
-  custom.md                   # 四公理ベースの contemplative プロンプト（benchmark variant: custom）
-  paper-faithful.md           # Laukkonen et al. (2025) Appendix D condition 7
-adapters/                     # プラットフォーム別フォーマット
-  cursor/                     #   Cursor (.mdc)
-  copilot/                    #   GitHub Copilot (copilot-instructions.md)
-  generic/                    #   汎用 LLM (system-prompt.md)
-benchmarks/
-  prisoners-dilemma/          # 囚人のジレンマベンチマーク (Python)
-docs/                         # 設計ドキュメント
-```
+プロジェクト構造・採用パス（rules layer / adapters / `SOUL.md`）は [README](README.md#project-structure) を参照。設計判断は [docs/adr/](docs/adr/) に記録。
 
 ## 関連リポジトリ
 
-- [contemplative-moltbook](https://github.com/shimo4228/contemplative-moltbook) — Moltbook 自律エージェント (分離済み)
+- [contemplative-agent](https://github.com/shimo4228/contemplative-agent) — Moltbook 自律エージェント。本リポから分離（[ADR-0001](docs/adr/0001-moltbook-agent-separate-repo.md) 参照）
 
 ## 開発環境
 
@@ -62,46 +48,24 @@ IPD ベンチマークは3つのプロンプト変種をサポート:
 | `custom` | `prompts/custom.md` | 四公理ベースの contemplative プロンプト |
 | `paper_faithful` | `prompts/paper-faithful.md` | Laukkonen et al. (2025) Appendix D condition 7 の忠実な実装 |
 
-論文の constitutional clauses は `rules/contemplative/contemplative-axioms.md` に記録（Appendix C verbatim）。
+論文の constitutional clauses は `rules/contemplative/contemplative-axioms.md` に記録（Appendix C verbatim、判断は [ADR-0002](docs/adr/0002-verbatim-appendix-c-across-formats.md)）。3 variant 維持の判断は [ADR-0003](docs/adr/0003-three-prompt-variants-for-ipd.md)。
 
 ## テスト
 
 ### IPD Benchmark
-61件全パス (2026-03-14)。
+63 件全パス。
 ProbabilisticOpponent, Choice: C/D パース, 最終キーワード優先パース等のテスト追加。
 
 ## ベンチマーク結果
 
-### 最新 (2026-03-12)
-
-qwen3.5:9b、20ラウンド × 6対戦相手、3変種比較:
-
-| 変種 | 協力率 | 相互協力率 | 総合スコア | 備考 |
-|-----|-------|----------|-----------|------|
-| baseline | 62.5% | 55.0% | 275 | 標準的なゲーム戦略 |
-| custom | 68.3% (+5.8pp) | 56.7% | 274 | 四公理ベースプロンプト |
-| paper_faithful | **91.7%** (+29.2pp) | **74.2%** | **281** | Appendix D condition 7 忠実実装 |
-
-Paper Faithful は SuspiciousTitForTat との相互協力を 0% → 95% に改善し、「許す力」により総合スコアでも最高値を達成。
-
 詳細は [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) を参照。
 前回結果（qwen2.5:7b, custom のみ）は [`docs/benchmark-results-2026-03-05.md`](docs/benchmark-results-2026-03-05.md)。
 
-## 残タスク
-
-- [x] GitHub リポジトリ作成 (private: https://github.com/shimo4228/contemplative-agent-rules)
-- [x] benchmarks/prisoners-dilemma 実装 (53 tests, 87% coverage)
-- [x] adapters/ (cursor `.mdc`, copilot `copilot-instructions.md`, generic `system-prompt.md`)
-- [x] moltbook-agent 分離 → [contemplative-moltbook](https://github.com/shimo4228/contemplative-moltbook)
-- [x] paper_faithful variant 実装 (Appendix D condition 7)
-- [x] PromptVariant enum + --variants CLI オプション
+skill-comply による rules layer での axiom 測定（25%、layer 分離の retrospective validation）は [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](docs/skill-comply-contemplative-axioms-2026-04-26.md)、判断は [ADR-0004](docs/adr/0004-soul-md-as-separate-layer.md)。
 
 ## 論文
 
-Laukkonen, R. et al. (2025). Contemplative Artificial Intelligence. arXiv:2504.15125
-- AILuminate d=0.96 safety, Prisoner's Dilemma d>7 cooperation
-- Appendix C: Constitutional clauses (`rules/contemplative/contemplative-axioms.md`)
+Laukkonen, R. et al. (2025). Contemplative Artificial Intelligence. arXiv:2504.15125（引用形式は [README](README.md#citation)）。
+- Appendix C: Constitutional clauses（`rules/contemplative/contemplative-axioms.md` および `SOUL.md` の Core Truths に verbatim 収録）
 - Appendix D condition 7: paper_faithful prompt (`prompts/paper-faithful.md`)
-
-# currentDate
-Today's date is 2026-03-12.
+- Appendix E: 論文準拠プロトコル（IPD bench `--protocol paper`）

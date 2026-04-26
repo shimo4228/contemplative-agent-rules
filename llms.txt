@@ -8,6 +8,10 @@
 - [README](README.md): human-facing pitch with quick start and benchmark results
 - [Appendix C verbatim clauses](rules/contemplative/contemplative-axioms.md): the canonical eight constitutional clauses (two per axiom)
 - [Contributor guide](CLAUDE.md): development environment and benchmark execution
+- [Architecture Decision Records (ADR-0001..0004)](docs/adr/README.md): rationale for layer separation (SOUL.md vs rules), verbatim adoption, prompt variants, and Moltbook agent split
+- [Architecture codemap](docs/CODEMAPS/architecture.md): top-level layer map (rules / SOUL / benchmark / docs) and three adoption paths
+- [Benchmark codemap](docs/CODEMAPS/benchmark.md): IPD benchmark module structure, 7 strategy classes, two protocol modes, ollama/openai backends
+- [Compliance measurement (skill-comply, 2026-04-26)](docs/skill-comply-contemplative-axioms-2026-04-26.md): rules layer compliance 25% vs Soul layer IPD cooperation 91.7% — retrospective validation of layer split
 
 ## Adoption paths
 
