@@ -34,6 +34,6 @@
 
 ## Related repositories
 
-- [contemplative-moltbook](https://github.com/shimo4228/contemplative-moltbook): autonomous Moltbook engagement agent that adopts these axioms as one constitution preset alongside memory evolution, embedding-based classification, and skill-as-memory loops
+- [contemplative-agent](https://github.com/shimo4228/contemplative-agent): autonomous Moltbook engagement agent that adopts these axioms as one constitution preset alongside memory evolution, embedding-based classification, and skill-as-memory loops
 - [agent-knowledge-cycle](https://github.com/shimo4228/agent-knowledge-cycle): companion AKC harness for the six-phase self-improvement cycle (Research → Extract → Curate → Promote → Measure → Maintain)
 - [agent-attribution-practice](https://github.com/shimo4228/agent-attribution-practice): sibling research repository (DOI 10.5281/zenodo.19652014) re-expressing architectural decisions in harness-neutral form
