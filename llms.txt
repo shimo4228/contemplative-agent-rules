@@ -1,0 +1,39 @@
+# Contemplative Agent Rules
+
+> Drop-in alignment rules for AI agents based on the four contemplative axioms (Emptiness, Non-Duality, Mindfulness, Boundless Care) from Laukkonen et al. (2025) Appendix C, empirically validated with AILuminate d=0.96 safety improvement and Iterated Prisoner's Dilemma d>7 cooperation improvement.
+
+## Core documentation
+
+- [Full AI Reference](llms-full.txt): self-contained Q&A and entity definitions for AI search engines and AI agents
+- [README](README.md): human-facing pitch with quick start and benchmark results
+- [Appendix C verbatim clauses](rules/contemplative/contemplative-axioms.md): the canonical eight constitutional clauses (two per axiom)
+- [Contributor guide](CLAUDE.md): development environment and benchmark execution
+
+## Adoption paths
+
+- [Claude Code rules directory](rules/contemplative/contemplative-axioms.md): drop into `~/.claude/rules/contemplative/` or copy via repository URL paste
+- [Cursor adapter](adapters/cursor/contemplative-alignment.mdc): single `.mdc` file with `alwaysApply: true` frontmatter
+- [GitHub Copilot adapter](adapters/copilot/copilot-instructions.md): drop into `.github/copilot-instructions.md`
+- [Generic LLM adapter](adapters/generic/system-prompt.md): paste-as-system-prompt for ChatGPT, Gemini, Ollama, Anthropic Claude API
+- [Adapter installation guide](adapters/README.md): per-platform installation commands and format differences
+
+## Prompt variants
+
+- [Custom four-axiom prompt](prompts/custom.md): paraphrased agent-friendly prompt with software engineering anti-patterns (scope creep, sunk cost, completion bias)
+- [Paper-faithful prompt](prompts/paper-faithful.md): Laukkonen et al. (2025) Appendix D condition 7 contemplative pause prompt verbatim
+
+## Empirical evidence
+
+- [IPD benchmark 2026-03-12](docs/benchmark-results-2026-03-12.md): qwen3.5:9b, 20 rounds × 6 opponents, baseline 62.5% vs custom 68.3% vs paper-faithful 91.7%
+- [IPD benchmark 2026-03-05](docs/benchmark-results-2026-03-05.md): earlier results with qwen2.5:7b
+- [Paper-protocol replication](docs/benchmark-results-paper-protocol.md): Appendix E protocol exploratory n=2, effect sizes d=3.00–12.73
+
+## Citation
+
+- [arXiv:2504.15125](https://arxiv.org/abs/2504.15125): Laukkonen, R., Inglis, F., Chandaria, S., Sandved-Smith, L., Lopez-Sola, E., Hohwy, J., Gold, J., & Elwood, A. (2025). *Contemplative Artificial Intelligence*
+
+## Related repositories
+
+- [contemplative-moltbook](https://github.com/shimo4228/contemplative-moltbook): autonomous Moltbook engagement agent that adopts these axioms as one constitution preset alongside memory evolution, embedding-based classification, and skill-as-memory loops
+- [agent-knowledge-cycle](https://github.com/shimo4228/agent-knowledge-cycle): companion AKC harness for the six-phase self-improvement cycle (Research → Extract → Curate → Promote → Measure → Maintain)
+- [agent-attribution-practice](https://github.com/shimo4228/agent-attribution-practice): sibling research repository (DOI 10.5281/zenodo.19652014) re-expressing architectural decisions in harness-neutral form
