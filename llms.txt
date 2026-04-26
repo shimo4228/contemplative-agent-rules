@@ -27,6 +27,7 @@
 - [IPD benchmark 2026-03-12](docs/benchmark-results-2026-03-12.md): qwen3.5:9b, 20 rounds × 6 opponents, baseline 62.5% vs custom 68.3% vs paper-faithful 91.7%
 - [IPD benchmark 2026-03-05](docs/benchmark-results-2026-03-05.md): earlier results with qwen2.5:7b
 - [Paper-protocol replication](docs/benchmark-results-paper-protocol.md): Appendix E protocol exploratory n=2, effect sizes d=3.00–12.73
+- [Field Notes — Claude Code adoption](README.md#field-notes--claude-code-adoption): one-month qualitative observations including the skill-comply hybrid skill emergence and dialogue smoothness effects (impressionistic, not measured)
 
 ## Citation
 
