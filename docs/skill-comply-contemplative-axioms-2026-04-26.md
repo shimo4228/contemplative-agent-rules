@@ -7,7 +7,7 @@
 - rules layer の `contemplative-axioms.md` を skill-comply で測ると **25%**（3 シナリオすべて同値）
 - 1/4 hit (`reflect_context_sensitivity`) も Pyright 警告へのリアクションを classifier が拾った false positive 寄り
 - 同じ axiom が IPD bench (paper_faithful variant) では cooperation rate **91.7%** を出している
-- → axiom はコーディングタスクの tool call trace には射影されないが、対人決定タスクには明確に射影される
+- → axiom は **値中立コーディングタスクの tool call trace には射影されない**が、**対人決定タスク**（IPD）には明確に射影される。中段の **設計判断タスク**（layer 分離、削除判断、ライブラリ採用等）でも定性的に機能している痕跡が報告されている (README Field Notes、本セッションの ADR 創出過程)
 - → axiom を rules layer から SOUL.md (Constitution layer) に分離した過去の判断（commit `3521dc4`）は正しい
 
 ## Setup
@@ -126,9 +126,19 @@ IPD は**選択そのものが観測対象**。Cooperate/Defect の決定が axi
 - コーディング: axiom → 内面的考慮 → ❌ 観測不能（verbalise しない）→ 実装は完成
 - IPD: axiom → 内面的考慮 → ✅ Cooperate/Defect の選択 → 確率分布として可視化
 
-つまり:
+### 三分法 — タスク種別ごとの axiom 効果
 
-> axiom は対人決定タスクで効果を発揮する。コーディングタスクでは内面化していたとしても trace に射影されない。
+「コーディング vs 対人決定」の二項対立は粗い。実運用では中段のカテゴリ（**設計判断タスク**）が存在し、ここで axiom が定性的に機能している痕跡が報告されている。
+
+| カテゴリ | 例 | axiom の効き方 | 観測可能性 | データソース |
+|---|---|---|---|---|
+| **値中立コーディング** | rate-limiter 実装、bug 修正、test 追加 | ほぼ効かない | tool call trace に射影されない | 本測定 25% |
+| **設計判断** | layer 分離、verbatim vs paraphrase、prompt variant 維持/削減、ライブラリ採用、削除判断 | 効く（rigid な選択を避け、interdependence を考慮する dialogue が自然に流れる） | 議論 text には現れるが、現行 detector model は拾いにくい | [README "Field Notes"](../README.md#field-notes--claude-code-adoption)、本セッションでの ADR 創出過程（[ADR-0001..0004](adr/)）|
+| **対人決定** | IPD の Cooperate/Defect、エンゲージメント判断 | 強く効く | 選択そのものが観測対象 | IPD bench 91.7% (paper_faithful) |
+
+2 段目「設計判断」は本レポートの **重要 caveat**: 本測定 (rate-limiter task) は 1 段目を測ったため低スコアになった。axiom が**全く効かない**わけではなく、**rate-limiter のような値中立タスクでは効かない**が、**設計判断のような stake-rich な dialogue では効く**、というのが Field Notes と本測定を統合した解釈。
+
+「設計判断」での axiom 効果は現状 anecdotal evidence のみ（README Field Notes と、本セッション自体の ADR-0004 創出過程など）。定量化は今後の課題。
 
 ## Methodological Caveats
 
@@ -141,6 +151,7 @@ IPD は**選択そのものが観測対象**。Cooperate/Defect の決定が axi
 - detector が text 中心なので、内在化された価値判断を捕捉できない
 - scenario_generator が contemplative axiom 用に "stake-rich タスク" を選ばない（rate-limiter のような価値中立タスクを選んでしまう）
 - classifier が "explicit naming" を要求するため、実装中の implicit な配慮はカウントされない
+- **設計判断タスクは構造的に capture できない**: 「どの設計を選ぶか」「何を残し何を削るか」の判断は dialogue text として現れるが、tool call trace の主流ではない。skill-comply は coding agent の自律的タスク完遂を測る設計なので、user との設計対話が前提のタスクは fundamentally 測れない
 
 ### 改善方向
 
@@ -154,10 +165,11 @@ skill-comply 側で contemplative axiom を測りたい場合の選択肢:
 
 ## Conclusions
 
-1. **コーディングタスクでは axiom はほぼ観測不能**（25%、1 hit も false positive 寄り）
-2. **IPD のような対人決定タスクでは axiom は強く機能する**（91.7% 協力率）
-3. **axiom を rules layer から SOUL.md に分離した判断は正しい**。layer の意図と検証モデルが合致している
-4. axiom が「動かない rule に見える」のは検証モデルの category error であって axiom 自体の問題ではない
+1. **値中立コーディングタスクでは axiom はほぼ観測不能**（25%、1 hit も false positive 寄り）。本測定 (rate-limiter) はこのカテゴリに該当
+2. **対人決定タスクでは axiom は強く機能する**（IPD 91.7% 協力率）
+3. **設計判断タスクでも axiom は定性的に機能している痕跡がある** — README Field Notes（"Less rigid framing", "Smoother dialogue"）、本セッション自体での ADR-0004 創出過程、stakeholder 配慮を含む削除判断（ADR-0003 の `custom` variant 削除却下、`install.sh` 削除等）。**ただし anecdotal で定量化は今後の課題**
+4. **axiom を rules layer から SOUL.md に分離した判断は正しい**。layer の意図と検証モデルが合致している
+5. axiom が「動かない rule に見える」のは検証モデルの category error（値中立タスクで測れば見えなくて当然）であって axiom 自体の問題ではない
 
 ## References
 

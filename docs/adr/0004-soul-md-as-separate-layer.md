@@ -87,8 +87,9 @@ verbatim を 1 箇所に集約する thoroughgoing な解決案。
 
 - 2026-04-26 の skill-comply 測定: rules layer での `contemplative-axioms.md` は **25%**（1/4 hit も false positive 寄り）
 - IPD bench (paper_faithful variant): cooperation rate **91.7%**
+- **設計判断タスクでの効果（定性）**: 本 ADR を含む 4 ADR の創出過程自体が anecdotal evidence。layer 分離維持、`custom` variant 削除却下、stakeholder 配慮を含む削除判断などで rigid な選択を避け interdependence を考慮する dialogue が自然に流れた。README "Field Notes" の "Less rigid framing"、"Smoother dialogue" 観察と整合する
 
-両方とも本プロジェクトで観測済み。layer 分離の正当性を retrospective に裏付けるデータが揃った状態。詳細は [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md) 参照。
+両方とも本プロジェクトで観測済み。layer 分離の正当性を retrospective に裏付けるデータが揃った状態。詳細と三分法（値中立コーディング / 設計判断 / 対人決定）の整理は [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md) 参照。
 
 ### 後続判断
 
