@@ -2,7 +2,7 @@ Language: English | [日本語](README.ja.md)
 
 # Contemplative Agent Rules
 
-Drop-in alignment rules for AI agents based on the four axioms of Contemplative AI.
+**Drop-in alignment rules adoptable by any AI agent** — Claude Code, Cursor, GitHub Copilot, OpenClaw, OpenCode, Codex, Goose, or any generic LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp). One source, multiple adoption paths.
 
 > **Mindfulness** / **Emptiness** / **Non-Duality** / **Boundless Care**
 

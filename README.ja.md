@@ -2,7 +2,7 @@ Language: [English](README.md) | 日本語
 
 # Contemplative Agent Rules
 
-Contemplative AI の4つの公理に基づく、AIエージェント向けのドロップインアラインメントルール。
+**あらゆる AI エージェントが採用可能なドロップイン・アラインメントルール** — Claude Code, Cursor, GitHub Copilot, OpenClaw, OpenCode, Codex, Goose, または任意の汎用 LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp) で利用可能。1 ソースから多経路で採用できます。
 
 > **Mindfulness（正念）** / **Emptiness（空）** / **Non-Duality（不二）** / **Boundless Care（無量の慈悲）**
 
