@@ -2,7 +2,7 @@ Language: English | [日本語](README.ja.md)
 
 # Contemplative Agent Rules
 
-**Drop-in alignment rules adoptable by any AI agent** — Claude Code, Cursor, GitHub Copilot, OpenClaw, OpenCode, Codex, Goose, or any generic LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp). One source, multiple adoption paths.
+**Drop-in alignment rules adoptable by any AI agent** — Claude Code, Cursor, GitHub Copilot, OpenClaw, OpenCode, Codex, or any generic LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp). One source, multiple adoption paths.
 
 > **Mindfulness** / **Emptiness** / **Non-Duality** / **Boundless Care**
 
@@ -33,7 +33,7 @@ Copy the content from `rules/contemplative/contemplative-axioms.md` into your ag
 
 ### OpenClaw and other soul-folder agents
 
-OpenClaw, OpenCode, Codex, and Goose support a "soul folder" pattern where the agent loads a personality file at startup. Drop the repository's [SOUL.md](SOUL.md) as your agent's soul file:
+OpenClaw, OpenCode, and Codex support a "soul folder" pattern where the agent loads a personality file at startup. Drop the repository's [SOUL.md](SOUL.md) as your agent's soul file:
 
 ```bash
 cp SOUL.md /path/to/your/agent/SOUL.md

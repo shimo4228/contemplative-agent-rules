@@ -20,7 +20,7 @@ accepted
 
 1. **rules layer の検証モデルとの不適合**: `~/.claude/skills/skill-comply` のような検証ツールは、rules を「観測可能な tool call sequence」を生む actionable directive として測定する。contemplative axioms は philosophical / constitutional clause であり、コーディングタスクの tool call trace に射影されにくい
 2. **過去の測定で「効果不明」**: rules layer 単独で運用していた時期の測定（複数の skill / rule に対する skill-comply 結果）で、actionable rule（testing.md は 73%、search-first は 56%）に比べて**抽象 meta 原則（agentic-engineering 0%、long-running-test-discipline 8%）が極端に低い**ことが観測されていた。axiom もこのカテゴリに属する
-3. **OpenClaw が "soul folder" pattern を提供**: OpenClaw / OpenCode / Codex / Goose 等の agent harness では、rules とは別に「agent の identity / refusal / voice / continuity」を規定する soul layer がサポートされている。axiom はこの layer の方が semantic に適合する
+3. **OpenClaw が "soul folder" pattern を提供**: OpenClaw / OpenCode / Codex 等の agent harness では、rules とは別に「agent の identity / refusal / voice / continuity」を規定する soul layer がサポートされている。axiom はこの layer の方が semantic に適合する
 
 つまり contemplative axioms は **「コーディング rules」ではなく「agent の identity / value framing」**として扱うのが構造的に正しい、という認識に至った。
 
@@ -72,7 +72,7 @@ verbatim を 1 箇所に集約する thoroughgoing な解決案。
 
 ### 容易になったこと
 
-- OpenClaw / OpenCode / Codex / Goose 等の soul-folder harness で drop-in 採用が一発で機能する（README で「`cp SOUL.md /path/to/agent/SOUL.md`」と提示できる）
+- OpenClaw / OpenCode / Codex 等の soul-folder harness で drop-in 採用が一発で機能する（README で「`cp SOUL.md /path/to/agent/SOUL.md`」と提示できる）
 - skill-comply のような rules-layer 検証ツールで axiom が低スコアを出しても「測定モデルの category error」と説明できるようになった（layer が違うので測定モデルも違うべき）
 - IPD bench (paper_faithful 91.7%) のような対人決定タスクで axiom 効果を測ることが**正当な**検証パスとして位置づけられた
 - Laukkonen et al. の clauses が「単なるコーディング rule」ではなく「agent の identity 規定」として扱われている、という project の自己理解が明確になった
@@ -102,3 +102,7 @@ verbatim を 1 箇所に集約する thoroughgoing な解決案。
 - 検証レポート: [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md)
 - 関連レポート: [`docs/benchmark-results-2026-03-12.md`](../benchmark-results-2026-03-12.md)（IPD で paper_faithful 91.7%）
 - 前提 ADR: ADR-0002（verbatim 採用方針）
+
+## Corrections
+
+- **2026-04-28**: Original ADR included Goose in the soul-folder harness list. External verification confirmed Goose uses `.goosehints` (instruction file), not a soul layer. Removed from the soul-folder harness list (Context section item 3, related README sections). Sources: docs.openclaw.ai/concepts/agent-workspace, dev.to/lymah/using-goosehints-files-with-goose-304m. Decision and consequences are unaffected by this correction.
