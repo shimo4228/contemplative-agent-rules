@@ -19,6 +19,7 @@
 - [Cursor adapter](adapters/cursor/contemplative-alignment.mdc): single `.mdc` file with `alwaysApply: true` frontmatter
 - [GitHub Copilot adapter](adapters/copilot/copilot-instructions.md): drop into `.github/copilot-instructions.md`
 - [Generic LLM adapter](adapters/generic/system-prompt.md): paste-as-system-prompt for ChatGPT, Gemini, Ollama, Anthropic Claude API
+- [Soul-folder layer (SOUL.md)](SOUL.md): drop into agent root for OpenClaw, Hermes (Nous Research), OpenCode, and Codex — Appendix C verbatim plus personality scaffolding (~700 words). Hermes accepts SOUL.md directly via its OpenClaw migration path
 - [Adapter installation guide](adapters/README.md): per-platform installation commands and format differences
 
 ## Prompt variants

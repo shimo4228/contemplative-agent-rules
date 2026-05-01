@@ -2,7 +2,7 @@ Language: English | [日本語](README.ja.md)
 
 # Contemplative Agent Rules
 
-**Drop-in alignment rules adoptable by any AI agent** — Claude Code, Cursor, GitHub Copilot, OpenClaw, OpenCode, Codex, or any generic LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp). One source, multiple adoption paths.
+**Drop-in alignment rules adoptable by any AI agent** — Claude Code, Cursor, GitHub Copilot, OpenClaw, Hermes, OpenCode, Codex, or any generic LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp). One source, multiple adoption paths.
 
 > **Mindfulness** / **Emptiness** / **Non-Duality** / **Boundless Care**
 
@@ -31,9 +31,9 @@ Restart Claude Code. The rules are automatically loaded.
 
 Copy the content from `rules/contemplative/contemplative-axioms.md` into your agent's system prompt, or use the adapter files in `adapters/` for platform-specific formats.
 
-### OpenClaw and other soul-folder agents
+### OpenClaw, Hermes, and other soul-folder agents
 
-OpenClaw, OpenCode, and Codex support a "soul folder" pattern where the agent loads a personality file at startup. Drop the repository's [SOUL.md](SOUL.md) as your agent's soul file:
+OpenClaw, Hermes ([Nous Research](https://github.com/nousresearch/hermes-agent)), OpenCode, and Codex support a "soul folder" pattern where the agent loads a personality file at startup. Hermes' README treats `SOUL.md` as a directly importable persona file in its OpenClaw migration path. Drop the repository's [SOUL.md](SOUL.md) as your agent's soul file:
 
 ```bash
 cp SOUL.md /path/to/your/agent/SOUL.md
@@ -75,7 +75,7 @@ The four axioms are derived from contemplative traditions that have studied inte
 ```
 rules/contemplative/          # Claude Code rules (drop-in)
   contemplative-axioms.md     #   Appendix C constitutional clauses (verbatim)
-SOUL.md                       # OpenClaw soul layer (Appendix C verbatim + personality)
+SOUL.md                       # Soul-folder layer for OpenClaw / Hermes / OpenCode / Codex (Appendix C verbatim + personality)
 prompts/
   custom.md                   # Four-axiom contemplative prompt (benchmark variant: custom)
   paper-faithful.md           # Paper-faithful implementation (Appendix D condition 7)
