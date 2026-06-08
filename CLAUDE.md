@@ -6,7 +6,20 @@ Laukkonen et al. (2025) の四公理 (Mindfulness, Emptiness, Non-Duality, Bound
 
 ## 関連リポジトリ
 
-- [contemplative-agent](https://github.com/shimo4228/contemplative-agent) — Moltbook 自律エージェント。本リポから分離（[ADR-0001](docs/adr/0001-moltbook-agent-separate-repo.md) 参照）
+- [contemplative-agent](https://github.com/shimo4228/contemplative-agent) — 自律 AI エージェント（Moltbook を初期 SNS adapter に利用）。本リポから分離（[ADR-0001](docs/adr/0001-moltbook-agent-separate-repo.md) 参照）
+
+## Research Wiki Consultation (read-only)
+
+ルール・プロンプトの改訂、ADR 起草、release 前には、research wiki (Obsidian vault) の対応 concept ページを **read-only** で参照する。wiki は daily-research が積んだノートの合成層であり、contemplative AI 周辺の新研究・論争を追跡している。
+
+- 場所: `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian Vault/wiki/concept/`
+- 主担当ページ: `Contemplative-AI.md`。隣接: `仏教.md` / `能動的推論.md` / `エージェント帰責.md`
+- 見る節と用途:
+  1. **オープンクエスチョン** の「ADR 候補」マーク → 新規 ADR の種
+  2. **矛盾・論争** → 四公理ルール・prompt variants と衝突する新研究の照合
+  3. **Key Claims の外部出典** (arXiv ID 等) → rules / prompts / benchmark 改訂の根拠・Citation 候補
+- 引用規律: 公開成果物には wiki ページや vault パスを引用しない。wiki が指す **一次出典まで遡って** それを引く。wiki はレンズであって citable source ではない
+- wiki への書き込みは行わない (ingest / 概念ページ更新は vault セッションの領域)
 
 ## 開発環境
 
