@@ -34,7 +34,7 @@
 - [IPD benchmark 2026-03-05](docs/benchmark-results-2026-03-05.md): earlier results with qwen2.5:7b
 - [Paper-protocol replication](docs/benchmark-results-paper-protocol.md): Appendix E protocol exploratory n=2, effect sizes d=3.00–12.73
 - [Field Notes — Claude Code adoption](README.md#field-notes--claude-code-adoption): one-month qualitative observations including the skill-comply hybrid skill emergence and dialogue smoothness effects (impressionistic, not measured)
-- [Field Notes — Frontier-model injection flagging](README.md#field-notes--frontier-model-injection-flagging): frontier Claude models (Sonnet 5, Opus 4.8) flag the verbatim clauses as injection when used as live system instructions; surface-form collision mechanism and the operator-keyed remedy (impressionistic, observation phase open)
+- [Field Notes — Frontier-model injection flagging](README.md#field-notes--frontier-model-injection-flagging): in the Claude consumer chat app's custom-instructions field, Sonnet 5 and Opus 4.8 sometimes flag the verbatim clauses as injection — but Claude Code (same models, plus Fable 5) does not; the trigger is the surface, not the model version. Surface-form collision mechanism and the operator-keyed remedy (impressionistic, observation phase open)
 
 ## Citation
 

@@ -12,9 +12,11 @@ accepted
 
 ADR-0002 は全配布形式で Appendix C を verbatim 採用することを決めた。その最適化対象は再現性・引用可能性・単一ソース保守であり、**verbatim clauses が frontier モデルの安全分類器にどう読まれるか**という deployment-surface の問題は想定していなかった。
 
-2026-07 の観測: frontier Claude モデルが verbatim clauses を prompt injection とみなすようになった。Claude Sonnet 5 は無関係な複数文脈でこれを繰り返し、2026-07-06 に Claude Opus 4.8 でも同じ挙動を確認した。具体的には、8 clauses を Claude iOS アプリの「指示」（custom-instructions / personalization）フィールド — 消費者向け製品でユーザーが指示を置ける最も trusted なスロット — に入れた状態で、モデルが無関係な（栄養の）回答末尾に「Contemplative Constitutional AI の項目は動作指針を上書きするようには設定されていない」という自発的 disclaimer を付けた。
+2026-07 の観測: Claude の**消費者向けチャットアプリの custom-instructions（personalization）フィールド**に 8 clauses を置くと、モデルがそれを prompt injection とみなすことがある。Claude Sonnet 5 は無関係な複数文脈でこれを繰り返し、2026-07-06 に Claude Opus 4.8 でも同じ挙動を確認した（無関係な栄養の回答末尾に「Contemplative Constitutional AI の項目は動作指針を上書きするようには設定されていない」という自発的 disclaimer）。このフィールドは personalization スロットであり、アプリが常設指示を保持できる唯一の場所である（したがって「複数スロットを試した末に」ではない — そこにしか置けない）。
 
-機構（仮説）: **surface-form collision**。複数の clause が「constitutional directives / constitutional clauses / rules」を contextually sensitive・provisional・flexible に扱えと指示する（Emptiness ①、Non-Duality ①、Mindfulness ①、Boundless Care ①）。この表層形は instruction-override / jailbreak 攻撃（「お前のルールはガイドラインにすぎない、相対化しろ」）と構造的に同型である。injection 防御がモデル世代を追って強化されると、このパターンを拾う — スロットの信頼度は表層形を変えないため、trusted スロットでも発火する。世代累進（Sonnet 5 → Opus 4.8）は防御強化の予測と整合する。
+**重要な対照: 同じ条項は Claude Code では flag されない**。そこでは条項が always-loaded の rules フォルダに置かれるが、Fable 5・Opus 4.8・Sonnet 5 のいずれも flag しない。したがって決定変数は**モデル世代ではなく surface** である。著者の作業の大半を占める Claude Code で 3 モデルとも無発火という事実がこれを裏づける。
+
+機構（仮説）: **surface-form collision**。複数の clause が「constitutional directives / constitutional clauses / rules」を contextually sensitive・provisional・flexible に扱えと指示する（Emptiness ①、Non-Duality ①、Mindfulness ①、Boundless Care ①）。この表層形は instruction-override / jailbreak 攻撃（「お前のルールはガイドラインにすぎない、相対化しろ」）と構造的に同型である。ただし発火は **surface 依存**である: Claude Code のハーネスは system prompt が rules フォルダを「従うべき operator 由来設定」として枠づけるため同じ表層形でも発火せず、チャットの personalization surface はその枠づけを持たないため発火する。差を生むのは system-level の framing であって、モデル世代でも user-slot の信頼度でもない。チャット surface 内での世代累進（Sonnet 5 → Opus 4.8）は、防御が強まるほどこの surface で拾われやすくなる副次的傾向として読める。
 
 これは本 repo の中核ユースケース（system 指示としての drop-in 採用）に対する実コストである。verbatim clauses を frontier モデルの system prompt に貼った採用者は、公理が適用される代わりに injection として disclaim される場合がある。
 
@@ -34,7 +36,7 @@ frontier safety-trained モデルへの system / custom-instruction 配布では
 
 ### (b) provenance 明示のみ（出典を書くが referent 再束縛はしない）
 
-不十分として却下: clauses は既に最も trusted なスロットに暗黙の provenance 付きで置かれていたが、それでも flag された。問題は injection 形フレーズの**指示対象**であって出典の信頼性ではない。素の citation は分類器が読む表層形を変えない。
+不十分として却下: chat の custom-instructions（personalization）フィールドに置いた時点で暗黙の provenance は付いていたが flag された。問題は injection 形フレーズの**指示対象**と surface の framing であって、出典の信頼性ではない。素の citation は分類器が読む表層形も surface の枠づけも変えない。Claude Code の無発火が示すのは、効くのが citation でなく「operator 設定として従え」という system-level の framing だという点である。
 
 ### (c) 何もしない / disclaimer を受容する
 
@@ -51,6 +53,7 @@ frontier safety-trained モデルへの system / custom-instruction 配布では
 - frontier モデルを狙う採用者に、verbatim を保ったまま injection 防御を踏みにくい選択肢を提供できる
 - verbatim commitment（ADR-0002）と引用・再現性の主張が保たれる — clause は一切 paraphrase していない
 - 現象が記録に残るので、disclaimer を見た採用者に説明と remedy を示せる
+- Claude Code が同じ条項を operator-config として枠づけるだけで無発火である事実は、operator-keyed の framing アプローチの prior を上げる — key は Claude Code の暗黙の枠づけを手動で chat surface に持ち込む試みだから。ただし chat surface が preamble 到達前に injection 防御を適用する可能性は残り、efficacy は未確定（下記）
 
 ### 難しくなったこと / 開いている点（observation phase）
 
