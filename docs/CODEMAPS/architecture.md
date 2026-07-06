@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-26 | Files scanned: project root + docs/adr | Token estimate: ~600 -->
+<!-- Generated: 2026-04-26 | Updated: 2026-07-06 (ADR-0005 / operator-keyed variant) | Files scanned: project root + docs/adr | Token estimate: ~600 -->
 # Project Architecture
 
 ## Top-Level Layers
@@ -23,6 +23,7 @@ adapters/copilot/copilot-instructions.md       → .github/
 adapters/cursor/contemplative-alignment.mdc    → .cursor/rules/
 adapters/generic/system-prompt.md              → 任意の LLM の system prompt
 prompts/{custom,paper-faithful}.md             → IPD bench での prompt 比較用
+prompts/operator-keyed.md                      → frontier モデルの system 指示配布用（verbatim + interpretive key, ADR-0005）
 ```
 
 ## Layer S: Constitution / Soul
@@ -43,7 +44,7 @@ prompts/{custom,paper-faithful}.md             → IPD bench での prompt 比�
 
 ```
 docs/
-├── adr/                      ADR-0001..0004 + README + template
+├── adr/                      ADR-0001..0005 + README + template
 ├── benchmark-results-*.{md,ja.md}    public benchmark results (3 dates × 日英ペア)
 ├── skill-comply-contemplative-axioms-2026-04-26.md   compliance measurement report
 ├── CODEMAPS/                 architecture + benchmark codemap
@@ -80,3 +81,4 @@ CLAUDE.md (= AGENTS.md)      contributor / agent instructions
 | [0002](../adr/0002-verbatim-appendix-c-across-formats.md) | Appendix C verbatim をすべての配布形式で採用 | 2026-03-14 |
 | [0003](../adr/0003-three-prompt-variants-for-ipd.md) | IPD ベンチマークの 3 prompt variants 維持 | 2026-03-14 |
 | [0004](../adr/0004-soul-md-as-separate-layer.md) | SOUL.md を独立 Soul / Constitution layer として分離 | 2026-04-26 |
+| [0005](../adr/0005-interpretive-key-for-frontier-injection-defense.md) | Frontier-model injection defense 向け interpretive-key 前置き（operator-keyed variant） | 2026-07-06 |

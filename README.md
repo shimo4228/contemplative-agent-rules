@@ -78,6 +78,7 @@ rules/contemplative/          # Claude Code rules (drop-in)
 SOUL.md                       # Soul-folder layer for OpenClaw / Hermes / OpenCode / Codex (Appendix C verbatim + personality)
 prompts/
   custom.md                   # Four-axiom contemplative prompt (benchmark variant: custom)
+  operator-keyed.md           # Verbatim clauses + interpretive-key preamble (frontier system-instruction deployment; ADR-0005)
   paper-faithful.md           # Paper-faithful implementation (Appendix D condition 7)
 adapters/                     # Platform-specific formats (Cursor, Copilot, generic)
 benchmarks/prisoners-dilemma/ # Iterated Prisoner's Dilemma benchmark
@@ -137,6 +138,14 @@ After dropping these clauses into Claude Code's rules folder (alongside Python c
 **Smoother dialogue.** The usual stiffness in Claude's conversation loosened after adding the clauses, and new implementation ideas have surfaced through back-and-forth more readily. With Claude Code, where the implementation cost is low, what really determines output quality is aligning on ideas and intent — so dialogability with the coding agent is the binding constraint. The whole constitution seems to contribute here.
 
 These observations are a single adopter's qualitative impressions over roughly one month — quantitative measurement is left as future work. If you are curious, drop `rules/contemplative/contemplative-axioms.md` into your `~/.claude/rules/` and watch what changes over a few sessions.
+
+## Field Notes — Frontier-model injection flagging
+
+A second, less comfortable observation. When the eight verbatim clauses are used as *live system / custom instructions* on recent frontier models, the model sometimes flags them as a prompt-injection attempt. Claude Sonnet 5 did this repeatedly across unrelated tasks; on 2026-07-06 Claude Opus 4.8 did it too — appending, to an unrelated answer, a note that the "Contemplative Constitutional AI" clauses were not set up to override its guidelines. This happened even with the clauses in the most-trusted user slot (a consumer chat app's custom-instructions field).
+
+The likely mechanism is a surface-form collision: several clauses tell the reader to treat "constitutional directives / clauses / rules" as provisional or flexible, which reads, to an injection classifier, like "relativize your rules" — the shape of a jailbreak. As injection defenses improve across model versions, they catch this pattern; the trust of the slot doesn't change the surface form.
+
+The remedy that keeps the clauses verbatim is [`prompts/operator-keyed.md`](prompts/operator-keyed.md): the eight clauses unchanged, preceded by an interpretive key that rebinds "directives / rules" to the model's task-level conclusions (not its safety guidelines) and affirms those guidelines stay in force. **Whether the key actually defuses the flag is under observation as of 2026-07-06 — not yet confirmed.** If it fails, that failure is itself informative, and the paraphrased [`prompts/custom.md`](prompts/custom.md) is the fallback. Rationale: [ADR-0005](docs/adr/0005-interpretive-key-for-frontier-injection-defense.md).
 
 ## Citation
 

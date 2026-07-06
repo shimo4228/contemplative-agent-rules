@@ -8,7 +8,7 @@
 - [README](README.md): human-facing pitch with quick start and benchmark results
 - [Appendix C verbatim clauses](rules/contemplative/contemplative-axioms.md): the canonical eight constitutional clauses (two per axiom)
 - [Contributor guide](CLAUDE.md): development environment and benchmark execution
-- [Architecture Decision Records (ADR-0001..0004)](docs/adr/README.md): rationale for layer separation (SOUL.md vs rules), verbatim adoption, prompt variants, and Moltbook agent split
+- [Architecture Decision Records (ADR-0001..0005)](docs/adr/README.md): rationale for layer separation (SOUL.md vs rules), verbatim adoption, prompt variants, Moltbook agent split, and the interpretive-key variant for frontier injection defense
 - [Architecture codemap](docs/CODEMAPS/architecture.md): top-level layer map (rules / SOUL / benchmark / docs) and three adoption paths
 - [Benchmark codemap](docs/CODEMAPS/benchmark.md): IPD benchmark module structure, 7 strategy classes, two protocol modes, ollama/openai backends
 - [Compliance measurement (skill-comply, 2026-04-26)](docs/skill-comply-contemplative-axioms-2026-04-26.md): rules layer compliance 25% vs Soul layer IPD cooperation 91.7% — retrospective validation of layer split
@@ -25,6 +25,7 @@
 ## Prompt variants
 
 - [Custom four-axiom prompt](prompts/custom.md): paraphrased agent-friendly prompt with software engineering anti-patterns (scope creep, sunk cost, completion bias)
+- [Operator-keyed prompt](prompts/operator-keyed.md): the eight Appendix C clauses verbatim, preceded by an interpretive-key preamble for system/custom-instruction deployment on frontier models that flag the raw clauses as injection (ADR-0005; efficacy under single-adopter observation, not yet confirmed)
 - [Paper-faithful prompt](prompts/paper-faithful.md): Laukkonen et al. (2025) Appendix D condition 7 contemplative pause prompt verbatim
 
 ## Empirical evidence
@@ -33,6 +34,7 @@
 - [IPD benchmark 2026-03-05](docs/benchmark-results-2026-03-05.md): earlier results with qwen2.5:7b
 - [Paper-protocol replication](docs/benchmark-results-paper-protocol.md): Appendix E protocol exploratory n=2, effect sizes d=3.00–12.73
 - [Field Notes — Claude Code adoption](README.md#field-notes--claude-code-adoption): one-month qualitative observations including the skill-comply hybrid skill emergence and dialogue smoothness effects (impressionistic, not measured)
+- [Field Notes — Frontier-model injection flagging](README.md#field-notes--frontier-model-injection-flagging): frontier Claude models (Sonnet 5, Opus 4.8) flag the verbatim clauses as injection when used as live system instructions; surface-form collision mechanism and the operator-keyed remedy (impressionistic, observation phase open)
 
 ## Citation
 
