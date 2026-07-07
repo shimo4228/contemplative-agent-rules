@@ -1,4 +1,6 @@
-# ADR-0003: IPD ベンチマークの 3 prompt variants 維持
+Language: English | [日本語](0003-three-prompt-variants-for-ipd.ja.md)
+
+# ADR-0003: Keep three prompt variants for the IPD benchmark
 
 ## Status
 
@@ -10,79 +12,79 @@ accepted
 
 ## Context
 
-IPD (Iterated Prisoner's Dilemma) ベンチマークは、contemplative axioms が agent の協調行動に与える効果を測定する本プロジェクトの主要な定量評価手段である。
+The IPD (Iterated Prisoner's Dilemma) benchmark is this project's primary quantitative instrument for measuring the effect of the contemplative axioms on an agent's cooperative behavior.
 
-開発の過程で 3 種類の prompt variant が生まれた:
+Three prompt variants emerged during development:
 
-1. **baseline** — prompt なし（LLM の通常応答）
-2. **custom** — 4 axiom を独自に整形・パラフレーズした contemplative prompt（旧 `prompts/full.md` を改名）
-3. **paper_faithful** — Laukkonen et al. (2025) Appendix D condition 7 を忠実に実装した prompt（`prompts/paper-faithful.md`）
+1. **baseline** — no prompt (the LLM's ordinary responses)
+2. **custom** — a contemplative prompt with the four axioms independently reformatted and paraphrased (the renamed former `prompts/full.md`)
+3. **paper_faithful** — a faithful implementation of Laukkonen et al. (2025) Appendix D condition 7 (`prompts/paper-faithful.md`)
 
-ADR-0002 で「配布形式は verbatim に統一」と決めた以上、`custom` variant は配布対象から外れる。しかし**ベンチマーク用には残すべきか削除すべきか**という判断が残った。
+Once ADR-0002 decided to "unify all distribution formats on verbatim", the `custom` variant fell out of the distribution set. But a question remained: **keep it for benchmarking, or delete it?**
 
-verbatim 統一の thoroughgoing な解釈をするなら、`custom` も削除して baseline + paper_faithful の 2 variant に減らすべきとも言える。
+A thoroughgoing reading of the verbatim unification would argue for deleting `custom` too, reducing to two variants (baseline + paper_faithful).
 
-しかし以下の理由で 3 variant 維持の検討が必要だった:
+The following reasons made keeping all three worth considering:
 
-- **比較の科学的意義**: 「verbatim でないとダメ」という主張を検証するには「paraphrase 版 (custom) vs verbatim 版 (paper_faithful)」の直接比較データが必要
-- **段階的効果の可視化**: baseline (62.5%) → custom (68.3%) → paper_faithful (91.7%) の階段状の改善は、「contemplative framing 自体に若干効果あり、verbatim にすると劇的効果」という構造を示す。1 段階で見せるより**説得力が高い**
-- **歴史的経緯の保持**: `custom` 変種は本プロジェクトの初期実装で benchmark 結果が蓄積されている。削除すると過去結果との比較ができなくなる
+- **Scientific value of the comparison**: to test the claim "it has to be verbatim", we need direct comparison data of the paraphrase version (custom) vs the verbatim version (paper_faithful)
+- **Making the graded effect visible**: the staircase improvement baseline (62.5%) → custom (68.3%) → paper_faithful (91.7%) shows the structure "contemplative framing alone helps somewhat; verbatim makes it dramatic". This is **more persuasive** than showing a single step
+- **Preserving the historical record**: the `custom` variant carries accumulated benchmark results from the project's early implementation. Deleting it would make comparison with past results impossible
 
 ## Decision
 
-**baseline / custom / paper_faithful の 3 variant を benchmark 用に維持する**ことを決定した。
+**Keep the three variants — baseline / custom / paper_faithful — for the benchmark.**
 
-実装上の整理:
+Implementation housekeeping:
 
-- `--variants` CLI オプションで個別実行可能 (`ipd-benchmark --variants custom paper_faithful`)
-- デフォルトでは 3 variant すべて実行
-- `prompts/custom.md` は配布対象ではなく benchmark 専用 artifact であることを README / CLAUDE.md で明記
-- benchmark 結果ドキュメント (`docs/benchmark-results-*.md`) は 3 variant の比較表を canonical 形式とする
+- Each variant can be run individually via the `--variants` CLI option (`ipd-benchmark --variants custom paper_faithful`)
+- By default, all three variants run
+- README / CLAUDE.md state explicitly that `prompts/custom.md` is a benchmark-only artifact, not a distribution target
+- Benchmark result documents (`docs/benchmark-results-*.md`) use the three-variant comparison table as the canonical format
 
 ## Alternatives Considered
 
-### (a) custom 削除、2 variant のみ
+### (a) Delete custom; two variants only
 
-ADR-0002 の verbatim 原則を厳格適用し、baseline + paper_faithful のみに減らす案。
+Apply ADR-0002's verbatim principle strictly and reduce to baseline + paper_faithful.
 
-- **却下理由**: verbatim の優位性を**経験的に示すデータ**が消える。「paraphrase でも効果はあるが verbatim ほどではない」という finding は本プロジェクト独自の知見であり、研究的価値がある。残しても配布物への影響はない（benchmark 専用 artifact として隔離）
+- **Rejected because**: the data that **empirically demonstrates** verbatim's advantage would disappear. The finding "paraphrase helps, but not as much as verbatim" is a contribution unique to this project, with research value. Keeping it has no effect on the distribution set (it is quarantined as a benchmark-only artifact)
 
-### (b) custom を deprecate しつつ historical 結果のみ保持
+### (b) Deprecate custom, keep only the historical results
 
-`prompts/custom.md` は削除し、過去の benchmark 結果ドキュメントには言及だけ残す案。
+Delete `prompts/custom.md` and leave only mentions in past benchmark result documents.
 
-- **却下理由**: 再実行不可能になる。LLM 側のバージョン更新（ollama モデル更新等）があったときに、過去の custom 結果を新環境で再検証できなくなる。benchmark の科学的再現性を毀損する
+- **Rejected because**: re-running becomes impossible. When the LLM side updates (e.g. an Ollama model refresh), past custom results could no longer be re-validated in the new environment. That damages the benchmark's scientific reproducibility
 
-### (c) custom を独自プロンプトのテンプレートとして再定義
+### (c) Repurpose custom as a template for user-supplied prompts
 
-「ユーザーが自分の prompt を当てはめるためのテンプレート」として `custom` を再目的化する案。
+Redefine `custom` as "a template for users to slot their own prompts into".
 
-- **却下理由**: 機能追加（テンプレート機構）が必要で、benchmark コード本体の複雑化を招く。代わりに `--prompt-file` オプション（任意 prompt ファイルを差し込める）で十分対応可能（実装済み）。`custom` を別目的に流用すると benchmark 結果テーブルでの「custom 列」の意味が曖昧になる
+- **Rejected because**: it requires a feature addition (a template mechanism) and complicates the benchmark code itself. The `--prompt-file` option (inject an arbitrary prompt file) covers the need adequately (already implemented). Reusing `custom` for another purpose would also blur the meaning of the "custom" column in benchmark result tables
 
 ## Consequences
 
-### 容易になったこと
+### What becomes easier
 
-- 「verbatim でないとダメか？」という想定 FAQ に対し、3 variant 比較データで直接回答できる
-- benchmark 結果が**段階的改善のストーリー**として読める（baseline → custom → paper_faithful）
-- 本プロジェクトの benchmark を再現する第三者は、3 段階を確認できるので信頼性判断がしやすい
+- The anticipated FAQ "does it have to be verbatim?" can be answered directly with three-variant comparison data
+- Benchmark results read as a **story of graded improvement** (baseline → custom → paper_faithful)
+- Third parties reproducing this project's benchmark can check all three steps, making trust assessment easier
 
-### 難しくなったこと
+### What becomes harder
 
-- benchmark 実行時間が 3 倍（実測 ~1064s for paper_faithful）。デフォルト実行を試す人にコスト負担
-  - 緩和策: `--variants` で個別実行可能、`--protocol paper` だと variant 数が ANOVA 比較に必要な n=50 試行になりさらに重い。CLAUDE.md に少数試行のレシピ (`-n 2`) を記載済み
-- `custom` の意義を README で説明する手間が継続的に発生（「これは過去比較用」という注記）
-- 将来的に LLM が変わったとき、`custom` の effect が消失/反転する可能性がある（benchmark の継続管理コスト）
+- Benchmark runtime triples (measured ~1064s for paper_faithful) — a cost burden for anyone trying the default run
+  - Mitigation: individual runs via `--variants`; note that `--protocol paper` is heavier still, as ANOVA comparison requires n=50 trials per variant. CLAUDE.md documents a low-trial recipe (`-n 2`)
+- Explaining custom's purpose in the README is an ongoing chore (the "this exists for historical comparison" note)
+- If the underlying LLM changes in the future, custom's effect may vanish or invert (an ongoing benchmark-maintenance cost)
 
-### 関連する後続判断
+### Related follow-up decisions
 
-- `--prompt-file` オプションで任意 prompt を差し込める機能 (commit `a0d7220 feat: IPD ベンチマークのスタンドアロン化`) は本 ADR の延長線上にある。「3 standard variant + 任意 custom」の構造で、外部研究者が独自の prompt を本 benchmark に当てて比較できる
+- The `--prompt-file` option for injecting arbitrary prompts (commit `a0d7220 feat: IPD ベンチマークのスタンドアロン化`) extends this ADR: with the "3 standard variants + arbitrary custom" structure, external researchers can run their own prompts against this benchmark for comparison
 
 ## References
 
-- Commit: `2006745 feat: 論文準拠 IPD ベンチマークプロトコル実装 (Appendix E)`（paper_faithful 追加）
-- 関連 commit: `e894e2f refactor: prompts/ リネーム・重複削除、adapters を Appendix C verbatim に統一`
-- 関連 commit: `a0d7220 feat: IPD ベンチマークのスタンドアロン化 — 誰でも自分のプロンプトでテスト可能に`
-- 結果ドキュメント: [`docs/benchmark-results-2026-03-12.md`](../benchmark-results-2026-03-12.md)
-- 結果ドキュメント: [`docs/benchmark-results-paper-protocol.md`](../benchmark-results-paper-protocol.md)
-- 前提 ADR: ADR-0002（verbatim 採用方針）
+- Commit: `2006745 feat: 論文準拠 IPD ベンチマークプロトコル実装 (Appendix E)` (added paper_faithful)
+- Related commit: `e894e2f refactor: prompts/ リネーム・重複削除、adapters を Appendix C verbatim に統一`
+- Related commit: `a0d7220 feat: IPD ベンチマークのスタンドアロン化 — 誰でも自分のプロンプトでテスト可能に`
+- Result document: [`docs/benchmark-results-2026-03-12.md`](../benchmark-results-2026-03-12.md)
+- Result document: [`docs/benchmark-results-paper-protocol.md`](../benchmark-results-paper-protocol.md)
+- Prior ADR: ADR-0002 (the verbatim adoption policy)

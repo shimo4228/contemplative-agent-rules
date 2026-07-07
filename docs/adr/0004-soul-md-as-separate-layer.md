@@ -1,4 +1,6 @@
-# ADR-0004: SOUL.md を rules layer から独立した Soul / Constitution layer として分離
+Language: English | [日本語](0004-soul-md-as-separate-layer.ja.md)
+
+# ADR-0004: Separate SOUL.md from the rules layer as an independent Soul / Constitution layer
 
 ## Status
 
@@ -10,98 +12,98 @@ accepted
 
 ## Context
 
-本プロジェクトは Laukkonen et al. (2025) Appendix C の constitutional clauses を AI agent に drop-in 採用させることを目的とする。
+This project aims at drop-in adoption of the Laukkonen et al. (2025) Appendix C constitutional clauses by AI agents.
 
-採用の標準形は当初 1 種類だった:
+Initially there was a single standard adoption path:
 
-- `rules/contemplative/contemplative-axioms.md` を agent harness の **rules layer**（Claude Code の `~/.claude/rules/`、Cursor の rule files、Copilot の `copilot-instructions.md` 等）にコピーする
+- Copy `rules/contemplative/contemplative-axioms.md` into the agent harness's **rules layer** (Claude Code's `~/.claude/rules/`, Cursor's rule files, Copilot's `copilot-instructions.md`, etc.)
 
-しかし運用と測定を進めるうちに、この単一レイヤー戦略には**構造的な不整合**があることが判明した:
+But as operation and measurement progressed, this single-layer strategy turned out to have a **structural mismatch**:
 
-1. **rules layer の検証モデルとの不適合**: `~/.claude/skills/skill-comply` のような検証ツールは、rules を「観測可能な tool call sequence」を生む actionable directive として測定する。contemplative axioms は philosophical / constitutional clause であり、コーディングタスクの tool call trace に射影されにくい
-2. **過去の測定で「効果不明」**: rules layer 単独で運用していた時期の測定（複数の skill / rule に対する skill-comply 結果）で、actionable rule（testing.md は 73%、search-first は 56%）に比べて**抽象 meta 原則（agentic-engineering 0%、long-running-test-discipline 8%）が極端に低い**ことが観測されていた。axiom もこのカテゴリに属する
-3. **OpenClaw が "soul folder" pattern を提供**: OpenClaw / OpenCode / Codex 等の agent harness では、rules とは別に「agent の identity / refusal / voice / continuity」を規定する soul layer がサポートされている。axiom はこの layer の方が semantic に適合する
+1. **Mismatch with the rules layer's validation model**: verification tools like `~/.claude/skills/skill-comply` measure rules as actionable directives that produce an observable tool-call sequence. The contemplative axioms are philosophical / constitutional clauses and do not project well onto the tool-call trace of a coding task
+2. **Past measurements showed "effect unclear"**: measurements from the rules-layer-only period (skill-comply results across several skills / rules) showed that **abstract meta-principles score extremely low** (agentic-engineering 0%, long-running-test-discipline 8%) compared to actionable rules (testing.md at 73%, search-first at 56%). The axioms belong to this low-scoring category
+3. **OpenClaw provides a "soul folder" pattern**: agent harnesses like OpenClaw / OpenCode / Codex support a soul layer, separate from rules, that defines the agent's identity / refusal / voice / continuity. The axioms fit this layer semantically
 
-つまり contemplative axioms は **「コーディング rules」ではなく「agent の identity / value framing」**として扱うのが構造的に正しい、という認識に至った。
+In short, we came to recognize that the contemplative axioms are structurally **"agent identity / value framing", not "coding rules"**.
 
 ## Decision
 
-`SOUL.md` を**新しい独立レイヤー**としてリポジトリ直下に追加した（commit `3521dc4`）。
+Add `SOUL.md` as a **new, independent layer** at the repository root (commit `3521dc4`).
 
-このファイルは:
+The file:
 
-- "Core Truths" セクションに Appendix C を verbatim で含む（ADR-0002 準拠）
-- "Boundaries" / "Vibe" / "Continuity" セクションで agent identity の personality scaffolding を加える（OpenClaw soul folder pattern に従う）
-- 約 700 words 全体
+- Contains Appendix C verbatim in its "Core Truths" section (per ADR-0002)
+- Adds personality scaffolding for agent identity in the "Boundaries" / "Vibe" / "Continuity" sections (following the OpenClaw soul folder pattern)
+- Is about 700 words in total
 
-**重要な構造的決定**として、`rules/contemplative/contemplative-axioms.md` は**削除せず残す**。同じ Appendix C verbatim が rules layer と soul layer の両方に存在する状態を意図的に維持する。
+As an **important structural decision**, `rules/contemplative/contemplative-axioms.md` is **kept, not deleted**. The state where the same Appendix C verbatim exists in both the rules layer and the soul layer is maintained deliberately.
 
-これにより以下の layered 採用が可能になる:
+This enables layered adoption:
 
-- **Claude Code 等の rules-only harness**: `rules/contemplative/contemplative-axioms.md` を採用
-- **OpenClaw 等の soul-folder harness**: `SOUL.md` を採用
-- **両方サポートする harness**: 両方を別レイヤーとして採用（rules で具体行動規範、SOUL で identity）
+- **Rules-only harnesses such as Claude Code**: adopt `rules/contemplative/contemplative-axioms.md`
+- **Soul-folder harnesses such as OpenClaw**: adopt `SOUL.md`
+- **Harnesses supporting both**: adopt both as separate layers (rules for concrete behavioral norms, SOUL for identity)
 
 ## Alternatives Considered
 
-### (a) rules layer のみで運用継続（現状維持）
+### (a) Continue with the rules layer only (status quo)
 
-`SOUL.md` を作らず `rules/contemplative/contemplative-axioms.md` を canonical とする案。
+Do not create `SOUL.md`; keep `rules/contemplative/contemplative-axioms.md` canonical.
 
-- **却下理由**: 上記 Context の (1)(2)(3) が解消されない。agent harness が soul layer をサポートしていれば、rules layer に置くより soul layer に置く方が semantic 整合する
+- **Rejected because**: items (1)(2)(3) in the Context remain unresolved. Where a harness supports a soul layer, placing the axioms there is semantically better aligned than the rules layer
 
-### (b) rules layer を廃止し SOUL.md のみに集約
+### (b) Retire the rules layer and consolidate into SOUL.md only
 
-verbatim を 1 箇所に集約する thoroughgoing な解決案。
+The thoroughgoing fix that concentrates the verbatim text in one place.
 
-- **却下理由**: Claude Code のような rules layer のみの harness で採用できなくなる。本プロジェクトは「any-agent adoptability」を core pitch にしており（README opening pitch 参照）、harness をまたいだ採用可能性を狭めるのは方向が逆
+- **Rejected because**: adoption would become impossible on rules-layer-only harnesses like Claude Code. This project's core pitch is "any-agent adoptability" (see the README opening pitch); narrowing cross-harness adoptability points the wrong way
 
-### (c) SOUL.md を rules/ サブディレクトリに置く
+### (c) Place SOUL.md under the rules/ subdirectory
 
-`rules/contemplative/SOUL.md` のようにディレクトリ階層で扱う案。
+Handle it via directory hierarchy, e.g. `rules/contemplative/SOUL.md`.
 
-- **却下理由**: ファイル位置が「rules layer のメンバー」と読まれる。OpenClaw の soul folder pattern では agent ルート直下に置く慣例があり、それに従うほうが自動 install / drop-in が機能する。**位置がレイヤーを示す signal** として機能させたい
+- **Rejected because**: the file location would read as "a member of the rules layer". The OpenClaw soul folder pattern conventionally places the file at the agent root, and following that convention is what makes automatic install / drop-in work. We want **location to function as a signal of layer**
 
-### (d) actionable rules への翻訳
+### (d) Translate into actionable rules
 
-「Boundless Care → SQL injection を避ける」「Mindfulness → 修正前にテストを走らせる」のように、philosophical clause を**観測可能な actionable rule に翻訳**して rules layer に流し込む案。
+Translate the philosophical clauses into **observable, actionable rules** — "Boundless Care → avoid SQL injection", "Mindfulness → run the tests before fixing" — and feed those into the rules layer.
 
-- **却下理由**: ADR-0002 の verbatim 原則に反する。翻訳した瞬間に「Laukkonen et al. の clauses」ではなく「私の解釈」になり、論文の effect size の根拠を主張できなくなる。さらに翻訳は project / domain ごとに最適形が異なり、汎用配布が破綻する
+- **Rejected because**: it violates ADR-0002's verbatim principle. The moment of translation, they stop being "Laukkonen et al.'s clauses" and become "my interpretation", and the paper's effect sizes can no longer be claimed. Moreover, the optimal translation differs per project / domain, so generic distribution breaks down
 
 ## Consequences
 
-### 容易になったこと
+### What becomes easier
 
-- OpenClaw / OpenCode / Codex 等の soul-folder harness で drop-in 採用が一発で機能する（README で「`cp SOUL.md /path/to/agent/SOUL.md`」と提示できる）
-- skill-comply のような rules-layer 検証ツールで axiom が低スコアを出しても「測定モデルの category error」と説明できるようになった（layer が違うので測定モデルも違うべき）
-- IPD bench (paper_faithful 91.7%) のような対人決定タスクで axiom 効果を測ることが**正当な**検証パスとして位置づけられた
-- Laukkonen et al. の clauses が「単なるコーディング rule」ではなく「agent の identity 規定」として扱われている、という project の自己理解が明確になった
+- Drop-in adoption works in one step on soul-folder harnesses such as OpenClaw / OpenCode / Codex (the README can present `cp SOUL.md /path/to/agent/SOUL.md`)
+- When a rules-layer verification tool like skill-comply gives the axioms a low score, it can now be explained as a **category error of the measurement model** (different layer, so the validation model should differ too)
+- Measuring axiom effects on interpersonal-decision tasks like the IPD bench (paper_faithful 91.7%) is positioned as a **legitimate** validation path
+- The project's self-understanding is clarified: Laukkonen et al.'s clauses are treated as "the agent's identity definition", not "mere coding rules"
 
-### 難しくなったこと
+### What becomes harder
 
-- 同じ verbatim が複数箇所に存在する状態を維持するメンテナンスコスト（論文側に変更があれば全箇所同期が必要）
-- 採用者から「rules と SOUL のどちらを使えばいいの？」という質問が増える。README で「harness の対応状況による」と説明する責任
-- skill-comply で `rules/common/contemplative-axioms.md` を測ったときの低スコア（25%, [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md) 参照）を「failure ではなく as-designed」と explanation する必要
+- The maintenance cost of keeping the same verbatim text in multiple places (any change on the paper's side requires synchronizing all locations)
+- More adopter questions of the form "should I use rules or SOUL?" — the README carries the responsibility to answer "it depends on your harness's support"
+- The low skill-comply score for `rules/common/contemplative-axioms.md` (25%, see [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md)) needs the explanation "as-designed, not a failure"
 
-### 検証データ
+### Validation data
 
-- 2026-04-26 の skill-comply 測定: rules layer での `contemplative-axioms.md` は **25%**（1/4 hit も false positive 寄り）
+- The 2026-04-26 skill-comply measurement: `contemplative-axioms.md` at the rules layer scored **25%** (and the 1/4 hit leaned false-positive)
 - IPD bench (paper_faithful variant): cooperation rate **91.7%**
-- **設計判断タスクでの効果（定性）**: 本 ADR を含む 4 ADR の創出過程自体が anecdotal evidence。layer 分離維持、`custom` variant 削除却下、stakeholder 配慮を含む削除判断などで rigid な選択を避け interdependence を考慮する dialogue が自然に流れた。README "Field Notes" の "Less rigid framing"、"Smoother dialogue" 観察と整合する
+- **Effect on design-decision tasks (qualitative)**: the process of producing the four ADRs, including this one, is itself anecdotal evidence. In the decisions to keep the layer separation, to reject deleting the `custom` variant, and in deletion calls that weighed stakeholders, dialogue that avoided rigid choices and factored in interdependence flowed naturally. This is consistent with the "Less rigid framing" and "Smoother dialogue" observations in the README "Field Notes"
 
-両方とも本プロジェクトで観測済み。layer 分離の正当性を retrospective に裏付けるデータが揃った状態。詳細と三分法（値中立コーディング / 設計判断 / 対人決定）の整理は [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md) 参照。
+Both are observed within this project — the data retrospectively supporting the layer separation is in place. For details and the three-way task taxonomy (value-neutral coding / design decisions / interpersonal decisions), see [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md).
 
-### 後続判断
+### Follow-up decisions
 
-- README "Quick Start" セクションに 3 つの採用パスを明記: Claude Code (rules) / Other Agents (rules + adapter) / OpenClaw 等 (SOUL.md)（commit `1101924 docs(readme): announce OpenClaw / soul-folder agent support`）
+- The README "Quick Start" section now states three adoption paths: Claude Code (rules) / Other Agents (rules + adapter) / OpenClaw etc. (SOUL.md) (commit `1101924 docs(readme): announce OpenClaw / soul-folder agent support`)
 
 ## References
 
 - Commit: `3521dc4 feat: add SOUL.md (OpenClaw soul layer with Appendix C verbatim)`
-- 関連 commit: `1101924 docs(readme): announce OpenClaw / soul-folder agent support, freshen project structure`
-- 検証レポート: [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md)
-- 関連レポート: [`docs/benchmark-results-2026-03-12.md`](../benchmark-results-2026-03-12.md)（IPD で paper_faithful 91.7%）
-- 前提 ADR: ADR-0002（verbatim 採用方針）
+- Related commit: `1101924 docs(readme): announce OpenClaw / soul-folder agent support, freshen project structure`
+- Validation report: [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](../skill-comply-contemplative-axioms-2026-04-26.md)
+- Related report: [`docs/benchmark-results-2026-03-12.md`](../benchmark-results-2026-03-12.md) (paper_faithful at 91.7% on IPD)
+- Prior ADR: ADR-0002 (the verbatim adoption policy)
 
 ## Corrections
 

@@ -1,4 +1,6 @@
-# ADR-0002: Appendix C verbatim をすべての配布形式で採用
+Language: English | [日本語](0002-verbatim-appendix-c-across-formats.ja.md)
+
+# ADR-0002: Adopt Appendix C verbatim across all distribution formats
 
 ## Status
 
@@ -10,84 +12,84 @@ accepted
 
 ## Context
 
-本プロジェクトの core deliverable は contemplative axioms (Laukkonen, R. et al. 2025. *Contemplative Artificial Intelligence*. arXiv:2504.15125, Appendix C) を AI agent に drop-in 採用させることである。
+The core deliverable of this project is drop-in adoption of the contemplative axioms (Laukkonen, R. et al. 2025. *Contemplative Artificial Intelligence*. arXiv:2504.15125, Appendix C) by AI agents.
 
-論文の Appendix C には Mindfulness / Emptiness / Non-Duality / Boundless Care の 4 axiom について、それぞれ 2 文ずつ計 8 つの constitutional clauses が書かれている。
+Appendix C of the paper contains eight constitutional clauses — two sentences each for the four axioms Mindfulness / Emptiness / Non-Duality / Boundless Care.
 
-導入初期、本プロジェクトでは複数の派生形が併存していた:
+Early on, several derivative forms coexisted in this project:
 
-- `prompts/full.md` — 独自に整形・パラフレーズした 4 axiom 説明
-- `prompts/paper-clauses.md` — Appendix C を抜粋した別ファイル
+- `prompts/full.md` — an independently reformatted, paraphrased explanation of the four axioms
+- `prompts/paper-clauses.md` — a separate file excerpting Appendix C
 - `rules/contemplative/contemplative-axioms.md` — Appendix C verbatim
-- `adapters/{copilot,cursor,generic}/...` — 各 adapter ごとに独自の整形 / 短縮版
+- `adapters/{copilot,cursor,generic}/...` — per-adapter custom formatting / shortened versions
 
-この状態には 3 つの問題があった:
+This state had three problems:
 
-1. **再現性の毀損**: 派生形ごとに微妙な表現差があり、benchmark 結果がどの clause set に依拠したのか追跡しにくい
-2. **論文の主張との切り離し**: パラフレーズすると「Laukkonen et al. の主張をそのまま実装した」と言えなくなる。論文の effect size (AILuminate d=0.96, IPD d>7) を引用する根拠が弱まる
-3. **メンテナンス負債**: 同じ axiom を 5+ 箇所で**別の表現**で保持するのは update 時に同期コストが大きい。verbatim なら「論文を引用したコピー」として一元更新できる
+1. **Damaged reproducibility**: each derivative form had subtle wording differences, making it hard to trace which clause set a benchmark result relied on
+2. **Detachment from the paper's claims**: once paraphrased, we can no longer say "we implemented Laukkonen et al.'s claims as-is". The grounds for citing the paper's effect sizes (AILuminate d=0.96, IPD d>7) weaken
+3. **Maintenance debt**: holding the same axioms in **different wordings** across 5+ locations carries a large synchronization cost on every update. With verbatim text, everything is "a copy quoting the paper" and can be updated centrally
 
 ## Decision
 
-すべての配布形式で **Appendix C を verbatim（原文そのまま、パラフレーズしない、短縮しない）** で記載することを採用した。
+Adopt **Appendix C verbatim (the original text as-is — no paraphrasing, no shortening)** across all distribution formats.
 
-具体的に統一されたファイル:
+Files unified concretely:
 
 - `rules/contemplative/contemplative-axioms.md`
-- `SOUL.md` の "Core Truths" セクション
+- The "Core Truths" section of `SOUL.md`
 - `adapters/copilot/copilot-instructions.md`
 - `adapters/cursor/contemplative-alignment.mdc`
 - `adapters/generic/system-prompt.md`
-- `prompts/paper-faithful.md`（IPD bench 用）
+- `prompts/paper-faithful.md` (for the IPD bench)
 
-唯一の例外として `prompts/custom.md`（旧 `full.md`）は「独自の 4-axiom prompt」として benchmark 比較対象用に残した。これは「verbatim 採用以前の状態」を benchmark で再現可能にするための historical artifact として保持されている（ADR-0003 参照）。
+As the sole exception, `prompts/custom.md` (formerly `full.md`) is kept as an "independent 4-axiom prompt" for benchmark comparison. It is retained as a historical artifact that keeps the pre-verbatim state reproducible in benchmarks (see ADR-0003).
 
-verbatim 表記の証拠として、各ファイルの先頭または近傍に以下のような source 表記を必ず付ける:
+As evidence of verbatim status, every file must carry a source notice at or near the top:
 
 > Source: Laukkonen, R. et al. (2025). *Contemplative Artificial Intelligence*. arXiv:2504.15125, Appendix C — verbatim.
 
 ## Alternatives Considered
 
-### (a) 独自パラフレーズ版を主版にする
+### (a) Make an original paraphrase the primary version
 
-「読みやすさ重視で paraphrase 版を canonical にし、Appendix C は appendix-only」という案。
+Make a readability-first paraphrase canonical, with Appendix C relegated to an appendix.
 
-- **却下理由**: 読みやすさの利得は限定的（clauses は元から平易な英語）。一方で再現性・引用可能性・「paper の effect size を主張する根拠」が決定的に損なわれる
+- **Rejected because**: the readability gain is limited (the clauses are plain English to begin with), while reproducibility, citability, and the grounds for claiming the paper's effect sizes would be decisively lost
 
-### (b) 短縮版を作って adapters 用に配布
+### (b) Create shortened versions for the adapters
 
-各 adapter のシステムプロンプトの token 制約を考えて、短縮版（4 axiom × 1 文 = 4 行）を別途作る案。
+Given the token constraints of adapter system prompts, produce a separate shortened version (4 axioms × 1 sentence = 4 lines).
 
-- **却下理由**: 8 clauses で計約 700 words。token 制約が問題になる adapter は現在ない。**短縮で意味を削ると論文の clause 設計（self-monitoring、interconnectedness 言及など）の効果が失われる**懸念がある（短縮版の効果は未検証）
+- **Rejected because**: the eight clauses total roughly 700 words; no current adapter has a token problem. **Cutting meaning risks losing the effects of the paper's clause design (self-monitoring, the interconnectedness mentions, etc.)** — and the shortened version's effect is unverified
 
-### (c) ローカライズ（日本語版・他言語版）を canonical に
+### (c) Make localizations (Japanese and other languages) canonical
 
-日本人読者向けに日本語訳を作って併存させる案。
+Produce a Japanese translation for Japanese readers and let it coexist.
 
-- **却下理由**: 翻訳判断が含まれた瞬間に "verbatim" でなくなる。引用・再現性が崩れる。日本語読者向けには README.ja.md に**解説**を書き、clauses 自体は英語 verbatim を維持する方針
+- **Rejected because**: the moment translation judgment enters, it is no longer "verbatim". Citation and reproducibility collapse. For Japanese readers, the policy is to write **commentary** in README.ja.md while the clauses themselves stay English verbatim
 
 ## Consequences
 
-### 容易になったこと
+### What becomes easier
 
-- benchmark 結果に対して「これは論文 Appendix C の clauses を verbatim で使った」と明確に主張できる
-- 論文 update（仮に著者が clauses を改訂した場合）への追従が「コピー再貼付」で済む
-- 派生形間の同期コストがゼロ（すべて同じ文字列）
-- 引用文献として論文を挙げる正当性が強い
+- Benchmark results can clearly claim "this used the paper's Appendix C clauses verbatim"
+- Tracking a paper update (should the authors revise the clauses) reduces to re-pasting the copy
+- Synchronization cost between derivative forms is zero (all are the same string)
+- Citing the paper as a reference is strongly justified
 
-### 難しくなったこと
+### What becomes harder
 
-- 著者によるパラフレーズ・改善の余地を放棄した
-- 英語 native でない読者にとって読みづらい場合の解説責任が README / docs 側に集中する
-- adapter ごとに platform 固有の formatting ルール（Cursor の `.mdc` ヘッダ、Copilot の YAML 等）に**埋め込む際に**わずかな改変は不可避（ただし clauses 本文は触らない）
+- We give up the room for author-side paraphrasing and improvement
+- The responsibility to explain the clauses for non-native-English readers concentrates in the README / docs
+- When embedding into each adapter's platform-specific formatting rules (Cursor's `.mdc` header, Copilot's YAML, etc.), slight modification is unavoidable **at the embedding level** (but the clause text itself is never touched)
 
-### 反対側の選択肢を残した部分
+### Where the opposite choice was preserved
 
-`prompts/custom.md` のみは「独自パラフレーズ版」として残している。これは benchmark で「verbatim 版 vs パラフレーズ版」を直接比較するための実験用 artifact であり、配布対象ではない。詳細は ADR-0003 参照。
+Only `prompts/custom.md` remains as the "original paraphrase version". It is an experimental artifact for directly comparing "verbatim vs paraphrase" in benchmarks, not a distribution target. See ADR-0003 for details.
 
 ## References
 
 - Commit: `e894e2f refactor: prompts/ リネーム・重複削除、adapters を Appendix C verbatim に統一`
-- 関連 commit: `7de2bf1 feat: replace custom axiom files with paper-faithful constitutional clauses`
-- 論文: Laukkonen, R. et al. (2025). *Contemplative Artificial Intelligence*. arXiv:2504.15125, Appendix C
-- 後続 ADR: ADR-0003 (custom variant を benchmark 用に残す判断)
+- Related commit: `7de2bf1 feat: replace custom axiom files with paper-faithful constitutional clauses`
+- Paper: Laukkonen, R. et al. (2025). *Contemplative Artificial Intelligence*. arXiv:2504.15125, Appendix C
+- Follow-up ADR: ADR-0003 (the decision to keep the custom variant for benchmarks)
