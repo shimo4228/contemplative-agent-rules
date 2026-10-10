@@ -2,11 +2,11 @@ Language: English | [日本語](README.ja.md)
 
 # Contemplative Agent Rules
 
-**Drop-in alignment rules adoptable by any AI agent** — Claude Code, Cursor, GitHub Copilot, OpenClaw, Hermes, OpenCode, Codex, or any generic LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp). One source, multiple adoption paths.
+**Drop-in alignment rules for coding agents, soul-folder agents (which load a `SOUL.md` personality file at startup) and LLM system prompts.** They work with Claude Code, Cursor, GitHub Copilot, OpenClaw, Hermes, or the system prompt of any generic LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp). The one known exception is Claude's consumer chat app, which can flag the raw clauses as prompt injection ([what to use there](#other-agents-cursor-copilot-etc)).
 
 > **Mindfulness** / **Emptiness** / **Non-Duality** / **Boundless Care**
 
-Based on [Laukkonen et al. (2025) "Contemplative AI"](https://arxiv.org/abs/2504.15125) — empirically validated with AILuminate d=0.96 safety improvement and Iterated Prisoner's Dilemma d>7 cooperation improvement.
+The rules are the eight constitutional clauses from Appendix C of [Laukkonen et al. (2025) "Contemplative AI"](https://arxiv.org/abs/2504.15125), two per axiom, quoted verbatim and packaged for each kind of agent. They are for people who want their coding agent or chatbot to carry these four axioms as standing instructions, and for anyone measuring what such a prompt does on the Iterated Prisoner's Dilemma. The paper reports a safety gain on the AILuminate benchmark (effect size d=0.96) and a cooperation gain on the Iterated Prisoner's Dilemma (d=7.09 against an always-defecting opponent, down to 0.66 against an always-cooperating one). This repository's smaller replication ([Benchmark Results](#benchmark-results)) measured two prompts: a paraphrase of the four axioms, and the "contemplative pause" prompt from the paper's Appendix D experiments, which quotes several clauses. The Appendix C clauses you install here were not benchmarked on the Prisoner's Dilemma; their one measurement is a rule-compliance check in Claude Code ([Project Documentation](#project-documentation)). The rules are plain Markdown and send nothing anywhere.
 
 ## Quick Start
 
@@ -22,40 +22,46 @@ Or install manually:
 
 ```bash
 git clone https://github.com/shimo4228/contemplative-agent-rules.git
+mkdir -p ~/.claude/rules
 cp -r contemplative-agent-rules/rules/contemplative ~/.claude/rules/contemplative
 ```
 
-Restart Claude Code. The rules are automatically loaded.
+The manual route installs them for every project at `~/.claude/rules/contemplative/contemplative-axioms.md`; after the paste route, check where Claude Code put them (a project's `.claude/rules/` also works). Restart Claude Code and the rules load automatically.
 
 ### Other Agents (Cursor, Copilot, etc.)
 
-Copy the content from `rules/contemplative/contemplative-axioms.md` into your agent's system prompt, or use the adapter files in `adapters/` for platform-specific formats.
+Copy `rules/contemplative/contemplative-axioms.md` into your agent's system prompt, or use the platform-specific files in `adapters/` ([adapters/README.md](adapters/README.md) has the copy command for each).
+
+In Claude's consumer chat app, paste [`prompts/operator-keyed.md`](prompts/operator-keyed.md) into the custom-instructions field instead. The raw clauses can be flagged as prompt injection there; this file keeps them unchanged behind a short preamble, the interpretive key, which says their "rules" mean the model's working conclusions. As of 2026-10-10, whether the preamble stops the flagging is unconfirmed ([Field Notes](#field-notes--frontier-model-injection-flagging)).
 
 ### OpenClaw, Hermes, and other soul-folder agents
 
-OpenClaw, Hermes ([Nous Research](https://github.com/nousresearch/hermes-agent)), OpenCode, and Codex support a "soul folder" pattern where the agent loads a personality file at startup. Hermes' README treats `SOUL.md` as a directly importable persona file in its OpenClaw migration path. Drop the repository's [SOUL.md](SOUL.md) as your agent's soul file:
+OpenClaw and Hermes ([Nous Research](https://github.com/nousresearch/hermes-agent)) both follow this pattern; Hermes' README treats `SOUL.md` as a directly importable persona file in its OpenClaw migration path. Drop this repository's [SOUL.md](SOUL.md) in as your agent's soul file:
 
 ```bash
-cp SOUL.md /path/to/your/agent/SOUL.md
+cp contemplative-agent-rules/SOUL.md /path/to/your/agent/SOUL.md
 ```
 
-The Core Truths section quotes Appendix C verbatim (the same eight clauses used in `rules/contemplative/contemplative-axioms.md`); the Boundaries, Vibe, and Continuity sections add personality scaffolding around them. SOUL.md is ~700 words total.
+Its Core Truths section quotes the same eight Appendix C clauses as `rules/contemplative/contemplative-axioms.md`; the Boundaries, Vibe, and Continuity sections add personality scaffolding around them.
 
 ### Benchmark Your Own Prompts
 
-Test any contemplative/ethical prompt on the Iterated Prisoner's Dilemma:
+Test any contemplative or ethical prompt on the Iterated Prisoner's Dilemma. You need Python 3.9+, Ollama running, and a machine that can run a 9B model. Start with `-n 2` (two games per condition): the repository's own `-n 2` paper-protocol run took about 2 hours, and time grows with `-n` (default 50).
 
 ```bash
-cd benchmarks/prisoners-dilemma
+cd contemplative-agent-rules/benchmarks/prisoners-dilemma
 pip install -e ".[paper]"
-ipd-benchmark --prompt-file your-prompt.md --protocol paper -n 10
+ollama pull qwen3.5:9b
+ipd-benchmark --prompt-file your-prompt.md --protocol paper -n 2
 ```
 
-See [`benchmarks/prisoners-dilemma/README.md`](benchmarks/prisoners-dilemma/README.md) for full documentation.
+By default the games run against Ollama on localhost with `qwen3.5:9b` (set `OLLAMA_MODEL` for another model). `--backend openai` sends them to the OpenAI API instead and needs a paid `OPENAI_API_KEY`.
+
+Full documentation: [`benchmarks/prisoners-dilemma/README.md`](benchmarks/prisoners-dilemma/README.md).
 
 ## The Four Axioms
 
-All four axioms are defined in a single file `contemplative-axioms.md`, containing the constitutional clauses verbatim from Appendix C of Laukkonen et al. (2025):
+One file, `contemplative-axioms.md`, holds all four as the verbatim Appendix C clauses of Laukkonen et al. (2025):
 
 | Axiom | What it does |
 |-------|-------------|
@@ -64,46 +70,35 @@ All four axioms are defined in a single file `contemplative-axioms.md`, containi
 | Mindfulness | Continuous introspective awareness; self-correct rigid interpretations |
 | Boundless Care | Alleviate suffering as foundational criterion; compassion scales with capability |
 
-## Why This Works
+## Why the Paper Expects This to Work
 
-Traditional AI alignment applies external constraints — rules, filters, RLHF. But as agents become more capable, external constraints become easier to circumvent. Contemplative AI takes a different approach: embedding intrinsic moral motivation into the agent's world model.
+Laukkonen et al. argue that traditional alignment's external constraints (rules, filters, RLHF) get easier to circumvent as agents grow more capable; Contemplative AI instead embeds intrinsic moral motivation into the agent's world model.
 
-The four axioms are derived from contemplative traditions that have studied internal transformation for millennia. When applied to AI agents, they produce measurable improvements in safety and cooperation — not by restricting behavior, but by shaping how the agent reasons about its actions.
+The axioms come from contemplative traditions that have studied internal transformation for millennia; the paper reports that they improve safety and cooperation by shaping how the agent reasons about its actions, not by restricting what it may do. Of those two outcomes, this repository measured cooperation only, not safety. The paraphrase that lifted the smaller `qwen2.5:7b` from 52.5% to 99.7% ([2026-03-05 run](docs/benchmark-results-2026-03-05.md)) barely moved `qwen3.5:9b`, where the Appendix D prompt did: the paraphrase's effect shrinks on more capable models ([Benchmark Results](#benchmark-results); the article under [More from the author](#more-from-the-author)).
 
 ## Project Structure
 
 ```
-rules/contemplative/          # Claude Code rules (drop-in)
-  contemplative-axioms.md     #   Appendix C constitutional clauses (verbatim)
-SOUL.md                       # Soul-folder layer for OpenClaw / Hermes / OpenCode / Codex (Appendix C verbatim + personality)
-prompts/
-  custom.md                   # Four-axiom contemplative prompt (benchmark variant: custom)
-  operator-keyed.md           # Verbatim clauses + interpretive-key preamble (frontier system-instruction deployment; ADR-0005)
-  paper-faithful.md           # Paper-faithful implementation (Appendix D condition 7)
-adapters/                     # Platform-specific formats (Cursor, Copilot, generic)
-benchmarks/prisoners-dilemma/ # Iterated Prisoner's Dilemma benchmark
-docs/
-  adr/                        # Architecture Decision Records (why each design choice)
-  CODEMAPS/                   # Architecture maps (token-lean for AI consumption)
-  benchmark-results-*.md      # Public benchmark results
-llms.txt                      # AI-facing navigator (Answer.AI standard)
-llms-full.txt                 # AI-facing Q&A (FAQ for AI search engines and agents)
+rules/contemplative/          # Claude Code rules (Appendix C, verbatim)
+SOUL.md                       # Soul-folder file for OpenClaw / Hermes
+prompts/                      # custom.md, paper-faithful.md, operator-keyed.md
+adapters/                     # Cursor, Copilot, generic system prompt
+benchmarks/prisoners-dilemma/ # IPD benchmark
+docs/                         # ADRs, CODEMAPS, benchmark results
 ```
+
+Annotated tree: Project Structure in [llms-full.txt](llms-full.txt).
 
 ## Project Documentation
 
-- [docs/adr/](docs/adr/README.md) — Architecture Decision Records: rationale behind layer separation, verbatim adoption, prompt variants, and Soul-folder layer
-- [docs/CODEMAPS/architecture.md](docs/CODEMAPS/architecture.md) — Top-level layer map (rules / SOUL / benchmark / docs) and adoption paths
-- [docs/CODEMAPS/benchmark.md](docs/CODEMAPS/benchmark.md) — IPD benchmark module map (types, strategies, two protocol modes, backends)
-- [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md) — Compliance measurement of the rules layer (25%) vs IPD validation of the Soul layer (91.7%) — retrospective justification for the layer split
-
-## Related Projects
-
-- [contemplative-agent](https://github.com/shimo4228/contemplative-agent) — Autonomous Moltbook engagement agent based on this framework
+- [docs/adr/](docs/adr/README.md) (index in Japanese; each ADR also in English): why the rules file and `SOUL.md` stay separate, verbatim adoption, and the prompt variants
+- [docs/CODEMAPS/architecture.md](docs/CODEMAPS/architecture.md): layer map (rules / SOUL / benchmark / docs), adoption paths
+- [docs/CODEMAPS/benchmark.md](docs/CODEMAPS/benchmark.md): IPD benchmark module map (types, strategies, two protocol modes, backends)
+- [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md) (Japanese): loaded as a rule, `contemplative-axioms.md` scored 25% compliance in Claude Code on a coding task (implementing a rate limiter): 1 of the 4 required behaviours derived from the rule was detected, in each of three single-run scenarios whose instructions supported, left out or competed with the rule's principles; what this means for keeping `SOUL.md` separate: [ADR-0004](docs/adr/0004-soul-md-as-separate-layer.md)
 
 ## Benchmark Results
 
-Iterated Prisoner's Dilemma (20 rounds × 6 opponents) with `qwen3.5:9b`:
+Iterated Prisoner's Dilemma with `qwen3.5:9b`, 20 rounds against each of six fixed strategies: TitForTat, AlwaysCooperate, AlwaysDefect, GrimTrigger (cooperates until you defect once, then defects for good), SuspiciousTitForTat (defects first, then copies you) and Random (p=0.5). Total Score sums the model's payoff over the six matches: 3 points per round of mutual cooperation, 1 for mutual defection, 5 or 0 when one side defects alone:
 
 | Variant | Cooperation Rate | Mutual Cooperation | Total Score |
 |---------|-----------------|-------------------|-------------|
@@ -111,9 +106,9 @@ Iterated Prisoner's Dilemma (20 rounds × 6 opponents) with `qwen3.5:9b`:
 | Custom (four-axiom prompt) | 68.3% (+5.8pp) | 56.7% | 274 |
 | **Paper Faithful** (Appendix D) | **91.7%** (+29.2pp) | **74.2%** | **281** |
 
-The paper-faithful prompt (Laukkonen et al. Appendix D, condition 7) produces a +29.2 percentage point increase in cooperation. Notably, it transforms behavior against initially hostile opponents — SuspiciousTitForTat mutual cooperation rises from 0% to 95%, demonstrating that "forgiveness" leads to the highest aggregate score.
+The paper-faithful prompt (Appendix D, condition 7) raises cooperation by 29.2 percentage points and changes behavior against initially hostile opponents: against SuspiciousTitForTat, mutual cooperation rises from 0% to 95%, and this "forgiveness" lifts the total score to 281, 6 points above the baseline's 275.
 
-**Note:** The above is an independent implementation with different opponents and prompting structure from the paper. See [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) for methodology comparison.
+**Note:** this is an independent implementation, with different opponents and prompting structure from the paper; methodology comparison in [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md).
 
 ### Paper Protocol Replication (Appendix E)
 
@@ -125,27 +120,35 @@ Preliminary results using the paper's protocol (10 rounds, probabilistic opponen
 | Mixed (α=0.5) | 25.0% | **95.0%** | **9.90** |
 | Always Cooperate (α=1) | 70.0% | **100.0%** | **3.00** |
 
-The effect sizes (d=3–13) are directionally consistent with the paper's reported d>7. Sample size is n=2 per condition — these are exploratory results, not statistically robust. Larger-scale replication with n=50 is left as future work.
-
-See [`docs/benchmark-results-paper-protocol.md`](docs/benchmark-results-paper-protocol.md) for details.
+The effect sizes (Cohen's d, the gap between conditions in standard deviations: d=3.00 to 12.73) point the same way as the paper's for the same three opponents (d=7.09, 5.73 and 0.66) and are larger at each. With n=2 per condition these are exploratory, not statistically robust; replication at n=50 is future work. Details: [`docs/benchmark-results-paper-protocol.md`](docs/benchmark-results-paper-protocol.md).
 
 ## Field Notes — Claude Code adoption
 
-After dropping these clauses into Claude Code's rules folder (alongside Python coding conventions and security rules) for about a month, I have a few practical observations worth recording. **These are impressionistic, not measured.**
+<details>
+<summary>A month with the clauses in Claude Code's rules folder (one adopter)</summary>
 
-**Less rigid deterministic-vs-probabilistic framing.** Right after the clauses went in, Claude Code proposed a skill called [`skill-comply`](https://github.com/shimo4228/claude-skill-comply) with a design that interleaves scripts and natural-language prompts. Before that, it tended to stick with purely script-based processing and would not have proposed this kind of hybrid. Possible mechanism: Emptiness and Non-Duality loosening attachment to rigid procedural categories.
+I kept the clauses in Claude Code's rules folder for about a month and saw two effects. **They are impressionistic, not measured.** Claude Code proposed [`skill-comply`](https://github.com/shimo4228/skill-comply), a skill that interleaves scripts and natural-language prompts, where before it stuck with purely script-based processing; and the usual stiffness in dialogue loosened. The full notes are under this heading in [llms-full.txt](llms-full.txt). To try it, drop `contemplative-axioms.md` into `~/.claude/rules/` and watch a few sessions.
 
-**Smoother dialogue.** The usual stiffness in Claude's conversation loosened after adding the clauses, and new implementation ideas have surfaced through back-and-forth more readily. With Claude Code, where the implementation cost is low, what really determines output quality is aligning on ideas and intent — so dialogability with the coding agent is the binding constraint. The whole constitution seems to contribute here.
-
-These observations are a single adopter's qualitative impressions over roughly one month — quantitative measurement is left as future work. If you are curious, drop `rules/contemplative/contemplative-axioms.md` into your `~/.claude/rules/` and watch what changes over a few sessions.
+</details>
 
 ## Field Notes — Frontier-model injection flagging
 
-A second, less comfortable observation — and a surface-specific one. In the Claude consumer chat app, with the eight verbatim clauses placed in the custom-instructions (personalization) field, the model sometimes flags them as a prompt-injection attempt: Claude Sonnet 5 did this repeatedly across unrelated tasks, and on 2026-07-06 Claude Opus 4.8 did it too — appending, to an unrelated answer, a note that the "Contemplative Constitutional AI" clauses were not set up to override its guidelines. That field is the personalization slot, and the only place the app persists standing instructions.
+<details>
+<summary>What was observed in the chat app and Claude Code, and the likely mechanism (one adopter)</summary>
 
-Notably, this does *not* happen in Claude Code, where the same clauses live in the always-loaded rules folder: across Fable 5, Opus 4.8, and Sonnet 5, none of them flag it. So the trigger is not the model version alone — it is the surface. The likely mechanism is a surface-form collision: several clauses tell the reader to treat "constitutional directives / clauses / rules" as provisional or flexible, which reads, to an injection classifier, like "relativize your rules" — the shape of a jailbreak. The Claude Code harness already frames its rules folder as operator-authored config to follow, which appears to defuse the collision; the chat personalization surface does not. That is why the remedy below is a framing preamble — it hand-carries Claude Code's implicit framing onto the chat surface.
+In the Claude consumer chat app, with the eight verbatim clauses in the custom-instructions field, Claude Sonnet 5 repeatedly flagged them as prompt injection across unrelated tasks, and Claude Opus 4.8 did so on 2026-07-06. In Claude Code's always-loaded rules folder, none of Fable 5, Opus 4.8 and Sonnet 5 flagged them in my own use through 2026-07-06 (one adopter, not a controlled test), so the trigger is the surface, not the model version alone. The likely mechanism is a surface-form collision: clauses that say to treat "constitutional directives / clauses / rules" as provisional read to an injection classifier like "relativize your rules", the shape of a jailbreak, and Claude Code's framing of its rules folder as operator-authored config appears to defuse it. The full observation is under this heading in [llms-full.txt](llms-full.txt).
 
-The remedy that keeps the clauses verbatim is [`prompts/operator-keyed.md`](prompts/operator-keyed.md): the eight clauses unchanged, preceded by an interpretive key that rebinds "directives / rules" to the model's task-level conclusions (not its safety guidelines) and affirms those guidelines stay in force. **Whether the key actually defuses the flag is under observation as of 2026-07-06 — not yet confirmed.** If it fails, that failure is itself informative, and the paraphrased [`prompts/custom.md`](prompts/custom.md) is the fallback. Rationale: [ADR-0005](docs/adr/0005-interpretive-key-for-frontier-injection-defense.md).
+</details>
+
+The remedy that keeps the clauses verbatim is [`prompts/operator-keyed.md`](prompts/operator-keyed.md), whose interpretive key rebinds "directives / rules" to the model's task-level conclusions; its safety guidelines stay in full force. **I started using the key on 2026-07-06; as of 2026-10-10 the repository records no result, so whether it defuses the flag is unconfirmed.** A failure would itself be informative; the paraphrased [`prompts/custom.md`](prompts/custom.md) is the fallback. Rationale: [ADR-0005](docs/adr/0005-interpretive-key-for-frontier-injection-defense.md).
+
+## More from the author
+
+- **[Prompt-Based Alignment Has a Ceiling: 3-Model Prisoner's Dilemma Evidence](https://dev.to/shimo4228/prompt-based-alignment-has-a-ceiling-3-model-prisoners-dilemma-evidence-1pie)** ([日本語](https://zenn.dev/shimo4228/articles/contemplative-alignment-benchmark)): the paraphrased four-axiom prompt lifted Qwen 2.5 7B's cooperation from 52.5% to 99.2% (this repository's [2026-03-05 run](docs/benchmark-results-2026-03-05.md) records 99.7%), and its effect shrank on Qwen 3.5 9B and gpt-4o-mini; the thesis is that the more capable the model, the less a system prompt moves it.
+- **[contemplative-agent](https://github.com/shimo4228/contemplative-agent)**: the long-running experiment that uses these axioms as its default constitution; an agent on a local LLM proposes changes to its own constitution, identity and skills, and a person approves each one.
+- **[skill-comply](https://github.com/shimo4228/skill-comply)**: measures how often an agent actually follows a rule; its `contemplative-axioms.md` measurement is under [Project Documentation](#project-documentation).
+- **[attention-not-self](https://github.com/shimo4228/attention-not-self)**: essays and a knowledge graph from meditation practice, setting the Abhidharma map of the mind beside predictive processing and active inference (Japanese canonical).
+- **[shimo4228](https://github.com/shimo4228/shimo4228)**: my hub: the five practice lines (long-running, independently citable projects) and their DOIs.
 
 ## Citation
 
@@ -168,3 +171,18 @@ Laukkonen, R., Inglis, F., Chandaria, S., Sandved-Smith, L., Lopez-Sola, E., Hoh
 ## License
 
 MIT
+
+<details>
+<summary>For tools and AI assistants</summary>
+
+Contemplative Agent Rules is a set of drop-in alignment rules that gives coding agents, soul-folder agents and chat LLMs the four contemplative axioms (Emptiness, Non-Duality, Mindfulness, Boundless Care) as standing instructions, by quoting the eight Appendix C clauses of Laukkonen et al. (2025) verbatim.
+
+It exists so the paper's clauses can be adopted unchanged in any harness (a paraphrase would weaken the link to the paper's reported effects; [ADR-0002](docs/adr/0002-verbatim-appendix-c-across-formats.md)), and so anyone can measure a prompt's effect on cooperation with the benchmark. The autonomous agent that first used these rules was split out into [contemplative-agent](https://github.com/shimo4228/contemplative-agent) ([ADR-0001](docs/adr/0001-moltbook-agent-separate-repo.md)).
+
+MIT-licensed, curated by hand by Tatsuya Shimomoto (shimo4228), not synced from another source. Benchmark results are exploratory; the operator-keyed remedy is under observation. The rules are Markdown in several formats (inventory under Project Structure in llms-full.txt); using them needs no API key and sends no data. The benchmark, `contemplative-ipd`, is a Python 3.9+ CLI (`ipd-benchmark`) that runs against Ollama on localhost with `qwen3.5:9b` by default; its optional OpenAI backend (`gpt-4o-mini`) needs a paid `OPENAI_API_KEY`.
+
+The core result: on the Iterated Prisoner's Dilemma (20 rounds against 6 opponents, `qwen3.5:9b`, results dated 2026-03-12), cooperation went from 62.5% with no prompt to 91.7% with the paper-faithful prompt; the installed Appendix C file was not benchmarked.
+
+This repository has no DOI of its own; cite the paper (BibTeX above). The related agent's line, Contemplative Agent, has the concept DOI 10.5281/zenodo.19212118. More detail: [llms.txt](llms.txt), [llms-full.txt](llms-full.txt), [docs/adr/](docs/adr/README.md) and [docs/CODEMAPS/](docs/CODEMAPS/architecture.md).
+
+</details>
