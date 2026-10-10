@@ -1,6 +1,8 @@
 # Contemplative Agent Rules
 
-> Drop-in alignment rules for AI agents based on the four contemplative axioms (Emptiness, Non-Duality, Mindfulness, Boundless Care) from Laukkonen et al. (2025) Appendix C, empirically validated with AILuminate d=0.96 safety improvement and Iterated Prisoner's Dilemma d>7 cooperation improvement.
+> Drop-in alignment rules for AI agents based on the four contemplative axioms (Emptiness, Non-Duality, Mindfulness, Boundless Care) from Laukkonen et al. (2025) Appendix C, for which the paper reports an AILuminate safety improvement (d=0.96) and an Iterated Prisoner's Dilemma cooperation improvement (d=7.09 against an always-defecting opponent).
+
+Status: curated by hand by Tatsuya Shimomoto (shimo4228), not synced from another source. The benchmark results are exploratory, and the operator-keyed remedy is still under observation.
 
 ## Core documentation
 
@@ -11,7 +13,7 @@
 - [Architecture Decision Records (ADR-0001..0005)](docs/adr/README.md): rationale for layer separation (SOUL.md vs rules), verbatim adoption, prompt variants, Moltbook agent split, and the interpretive-key variant for frontier injection defense
 - [Architecture codemap](docs/CODEMAPS/architecture.md): top-level layer map (rules / SOUL / benchmark / docs) and three adoption paths
 - [Benchmark codemap](docs/CODEMAPS/benchmark.md): IPD benchmark module structure, 7 strategy classes, two protocol modes, ollama/openai backends
-- [Compliance measurement (skill-comply, 2026-04-26)](docs/skill-comply-contemplative-axioms-2026-04-26.md): rules layer compliance 25% vs Soul layer IPD cooperation 91.7% — retrospective validation of layer split
+- [Compliance measurement (skill-comply, 2026-04-26)](docs/skill-comply-contemplative-axioms-2026-04-26.md): rules-layer compliance 25%, set beside the paper-faithful prompt's 91.7% IPD cooperation (SOUL.md itself was not benchmarked); the author's support for keeping SOUL.md separate (Japanese)
 
 ## Adoption paths
 
@@ -19,7 +21,7 @@
 - [Cursor adapter](adapters/cursor/contemplative-alignment.mdc): single `.mdc` file with `alwaysApply: true` frontmatter
 - [GitHub Copilot adapter](adapters/copilot/copilot-instructions.md): drop into `.github/copilot-instructions.md`
 - [Generic LLM adapter](adapters/generic/system-prompt.md): paste-as-system-prompt for ChatGPT, Gemini, Ollama, Anthropic Claude API
-- [Soul-folder layer (SOUL.md)](SOUL.md): drop into agent root for OpenClaw, Hermes (Nous Research), OpenCode, and Codex — Appendix C verbatim plus personality scaffolding (~700 words). Hermes accepts SOUL.md directly via its OpenClaw migration path
+- [Soul-folder layer (SOUL.md)](SOUL.md): drop into agent root for OpenClaw and Hermes (Nous Research) — Appendix C verbatim plus personality scaffolding. Hermes accepts SOUL.md directly via its OpenClaw migration path
 - [Adapter installation guide](adapters/README.md): per-platform installation commands and format differences
 
 ## Prompt variants
@@ -34,7 +36,7 @@
 - [IPD benchmark 2026-03-05](docs/benchmark-results-2026-03-05.md): earlier results with qwen2.5:7b
 - [Paper-protocol replication](docs/benchmark-results-paper-protocol.md): Appendix E protocol exploratory n=2, effect sizes d=3.00–12.73
 - [Field Notes — Claude Code adoption](README.md#field-notes--claude-code-adoption): one-month qualitative observations including the skill-comply hybrid skill emergence and dialogue smoothness effects (impressionistic, not measured)
-- [Field Notes — Frontier-model injection flagging](README.md#field-notes--frontier-model-injection-flagging): in the Claude consumer chat app's custom-instructions field, Sonnet 5 and Opus 4.8 sometimes flag the verbatim clauses as injection — but Claude Code (same models, plus Fable 5) does not; the trigger is the surface, not the model version. Surface-form collision mechanism and the operator-keyed remedy (impressionistic, observation phase open)
+- [Field Notes — Frontier-model injection flagging](README.md#field-notes--frontier-model-injection-flagging): in the Claude consumer chat app's custom-instructions field, Sonnet 5 and Opus 4.8 sometimes flag the verbatim clauses as injection — but Claude Code (same models, plus Fable 5) does not; the trigger is the surface, not the model version alone. Surface-form collision mechanism and the operator-keyed remedy (impressionistic, observation phase open)
 
 ## Citation
 
@@ -44,4 +46,5 @@
 
 - [contemplative-agent](https://github.com/shimo4228/contemplative-agent): autonomous Moltbook engagement agent that adopts these axioms as one constitution preset alongside memory evolution, embedding-based classification, and skill-as-memory loops
 - [agent-knowledge-cycle](https://github.com/shimo4228/agent-knowledge-cycle): companion AKC harness for the six-phase self-improvement cycle (Research → Extract → Curate → Promote → Measure → Maintain)
-- [agent-attribution-practice](https://github.com/shimo4228/agent-attribution-practice): sibling research repository (DOI 10.5281/zenodo.19652014) re-expressing architectural decisions in harness-neutral form
+- [agent-attribution-practice](https://github.com/shimo4228/agent-attribution-practice): sibling research repository (concept DOI 10.5281/zenodo.19652013) re-expressing architectural decisions in harness-neutral form
+- [shimo4228](https://github.com/shimo4228/shimo4228): the author's hub, with the five practice lines (long-running, independently citable projects) and their DOIs
