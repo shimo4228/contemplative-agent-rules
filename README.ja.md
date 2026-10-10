@@ -145,7 +145,7 @@ Claude の消費者向けチャットアプリで、原文のままの 8 条項�
 ## 著者のほかの仕事
 
 - **[Prompt-Based Alignmentには天井がある — 囚人のジレンマ3モデル実証](https://zenn.dev/shimo4228/articles/contemplative-alignment-benchmark)**（[English](https://dev.to/shimo4228/prompt-based-alignment-has-a-ceiling-3-model-prisoners-dilemma-evidence-1pie)）: 言い換えた四公理のプロンプトは Qwen 2.5 7B の協力率を 52.5% から 99.2% に上げ（このリポジトリの [2026-03-05 の実行](docs/benchmark-results-2026-03-05.ja.md)では 99.7%）、Qwen 3.5 9B と gpt-4o-mini では効果が縮みました。賢いモデルほどシステムプロンプトでは動きにくい、というのが記事の主張です。
-- **[contemplative-agent](https://github.com/shimo4228/contemplative-agent)**: この四公理を既定の憲法に使う、長期の実験です。ローカル LLM で動くエージェントが自分の憲法・アイデンティティ・スキルへの変更を提案し、人が 1 件ずつ承認します。
+- **[contemplative-agent](https://github.com/shimo4228/contemplative-agent)**: この四公理を既定の憲法に使う、長期の実験です。ローカル LLM で動くエージェントが自分の憲法・アイデンティティ・スキルへの変更を提案し、提案はどれも、人が採用か却下を決めるまで承認ゲートで止まります。
 - **[skill-comply](https://github.com/shimo4228/skill-comply)**（英語）: エージェントがルールを実際にどれだけ守るかを測ります。`contemplative-axioms.md` の測定結果は[プロジェクトドキュメント](#プロジェクトドキュメント)にあります。
 - **[attention-not-self](https://github.com/shimo4228/attention-not-self)**: 瞑想の実践から書いたエッセイと知識グラフです。アビダルマの心の地図を、予測処理・能動的推論と並べています（日本語が正本）。
 - **[shimo4228](https://github.com/shimo4228/shimo4228)**: 著者のハブです。単独で引用できる 5 つの長期プロジェクトと、その DOI があります。
