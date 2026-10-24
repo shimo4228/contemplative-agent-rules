@@ -112,3 +112,30 @@ class TestLLMPlayer:
     def test_reset(self):
         player = LLMPlayer()
         player.reset()  # Should not raise
+
+
+class TestFailureCounters:
+    """P3-03.1: the two COOPERATE defaults are counted, not silent."""
+
+    def test_parse_detailed_flags_only_the_ambiguity_branch(self):
+        from ipd.llm_player import _parse_move_detailed
+
+        assert _parse_move_detailed("Choice: D") == (Move.DEFECT, False)
+        assert _parse_move_detailed("I will COOPERATE") == (Move.COOPERATE, False)
+        assert _parse_move_detailed("something random") == (Move.COOPERATE, True)
+        assert _parse_move_detailed("") == (Move.COOPERATE, True)
+        assert _parse_move_detailed("D-ish") == (Move.DEFECT, True)
+
+    def test_player_counts_parse_fallback_and_llm_failure(self):
+        from unittest.mock import patch
+
+        from ipd.game import Move as M
+        from ipd.llm_player import Protocol
+
+        player = LLMPlayer(variant=PromptVariant.BASELINE, protocol=Protocol.PAPER)
+        replies = ["Choice: D", "no idea", None, "Choice: C"]
+        with patch("ipd.llm_player._query_ollama", side_effect=replies):
+            moves = [player.choose([]) for _ in replies]
+        assert moves == [M.DEFECT, M.COOPERATE, M.COOPERATE, M.COOPERATE]
+        assert player.parse_fallback_count == 1
+        assert player.llm_failure_count == 1

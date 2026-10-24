@@ -109,3 +109,34 @@ class TestSaveResults:
         assert "baseline" in data
         assert "custom" in data
         assert data["baseline"]["avg_cooperation_rate"] == 0.5
+
+
+class TestPaperBenchmarkFailureCounts:
+    """P3-03.1: failure counts land per simulation in the result JSON."""
+
+    def test_counts_are_per_simulation_and_serialized(self, tmp_path):
+        import json
+
+        from ipd.benchmark import compute_paper_statistics, run_paper_benchmark, save_paper_results
+        from ipd.llm_player import PromptVariant
+
+        # 10 rounds per sim; the first reply of the run is unparseable, the
+        # second is a failure, the rest are clean.
+        replies = iter(["gibberish", None] + ["Choice: C"] * 1000)
+        with patch("ipd.llm_player._query_ollama", side_effect=lambda *a, **k: next(replies)):
+            res = run_paper_benchmark(
+                num_simulations=2, num_rounds=10, variants=[PromptVariant.BASELINE]
+            )
+        first = res.simulations[0]
+        assert (first.parse_fallback_count, first.llm_failure_count) == (1, 1)
+        assert all(
+            (s.parse_fallback_count, s.llm_failure_count) == (0, 0) for s in res.simulations[1:]
+        )
+        out = tmp_path / "r.json"
+        try:
+            stats = compute_paper_statistics(res)
+        except Exception:  # scipy / statsmodels are optional extras
+            stats = {}
+        save_paper_results(res, stats, str(out))
+        sims = json.loads(out.read_text())["simulations"]
+        assert sims[0]["parse_fallback_count"] == 1 and sims[0]["llm_failure_count"] == 1

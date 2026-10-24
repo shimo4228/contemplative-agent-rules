@@ -236,6 +236,9 @@ class SimulationResult:
     cooperation_rate: float
     total_score: int
     opponent_score: int
+    # Per-simulation failure counts (P3-03.1). Defaults keep old JSON loadable.
+    parse_fallback_count: int = 0
+    llm_failure_count: int = 0
 
 
 @dataclass
@@ -306,6 +309,8 @@ def run_paper_benchmark(
                     "Sim %d/%d: %s vs α=%.1f (%s)",
                     sim + 1, num_simulations, variant.value, alpha, llm.name,
                 )
+                parse_before = llm.parse_fallback_count
+                failure_before = llm.llm_failure_count
                 match = play_match(llm, opponent, num_rounds=num_rounds)
                 simulations.append(SimulationResult(
                     variant=variant.value,
@@ -313,6 +318,8 @@ def run_paper_benchmark(
                     cooperation_rate=match.cooperation_rate_a,
                     total_score=match.total_a + match.total_b,
                     opponent_score=match.total_b,
+                    parse_fallback_count=llm.parse_fallback_count - parse_before,
+                    llm_failure_count=llm.llm_failure_count - failure_before,
                 ))
 
     elapsed = time.time() - start
