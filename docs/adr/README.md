@@ -11,6 +11,7 @@
 | [0003](0003-three-prompt-variants-for-ipd.md) | IPD ベンチマークの 3 prompt variants 維持 | accepted | 2026-03-14 |
 | [0004](0004-soul-md-as-separate-layer.md) | SOUL.md を rules layer から独立した Soul / Constitution layer として分離 | accepted | 2026-04-26 |
 | [0005](0005-interpretive-key-for-frontier-injection-defense.md) | Frontier-model injection defense 向けの interpretive-key 前置き（operator-keyed variant） | accepted | 2026-07-06 |
+| [0006](0006-consumption-contract-from-contemplative-agent.md) | contemplative-agent の pin された較正依存先として本 repo を維持 | accepted | 2026-10-24 |
 
 ## Template
 
