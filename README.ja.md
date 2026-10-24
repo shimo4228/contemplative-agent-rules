@@ -1,5 +1,7 @@
 Language: [English](README.md) | 日本語
 
+
+> **状態: contemplative-agent の ADR-0090 の較正依存先として維持**（tag `v0.2.0`。[消費契約](#消費契約contemplative-agent-の-adr-0090)を参照）。
 # Contemplative Agent Rules
 
 **コーディングエージェント、soul-folder 型のエージェント（起動時に人格のファイル `SOUL.md` を読み込むもの）、LLM のシステムプロンプトにそのまま入れられるアラインメントルールです。** Claude Code、Cursor、GitHub Copilot、OpenClaw、Hermes、または任意の汎用 LLM（ChatGPT、Gemini、Anthropic Claude API、Ollama、llama.cpp）のシステムプロンプトで使えます。わかっている唯一の例外は Claude の消費者向けチャットアプリで、条項をそのまま置くと prompt injection と見なされることがあります（[そこで使うもの](#その他のエージェントcursorcopilot-など)）。
@@ -96,6 +98,32 @@ docs/                         # ADR、CODEMAPS、ベンチマーク結果
 - [docs/CODEMAPS/benchmark.md](docs/CODEMAPS/benchmark.md)（英語）: ベンチマークのモジュールの地図（型、戦略、2 つのプロトコル、バックエンド）
 - [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md): Claude Code のルールとして読み込んだ `contemplative-axioms.md` の遵守率は、コーディングのタスク（rate limiter の実装）で 25% でした。ルールから導いた必須の振る舞い 4 つのうち 1 つが検出された、という意味です。指示がルールの原則を後押しする・触れない・ルールと競合する、の 3 つのシナリオ（各 1 回）すべてで同じ値でした。`SOUL.md` を分けることとの関係: [ADR-0004](docs/adr/0004-soul-md-as-separate-layer.ja.md)
 
+## 消費契約（contemplative-agent の ADR-0090）
+
+[contemplative-agent](https://github.com/shimo4228/contemplative-agent) は、憲法改正の較正 bench
+（その ADR-0090）として `benchmarks/prisoners-dilemma` を `--protocol paper --prompt-file` で
+消費しています。この repo はその pin された依存先として維持します（同 repo の D-P1-11-6 = A、
+[ADR-0006](docs/adr/0006-consumption-contract-from-contemplative-agent.md)）。pin は tag `v0.2.0` です。
+次の項目が成り立つ間だけ較正は有効です:
+
+| 項目 | 値 |
+|---|---|
+| モデル | Ollama の `gemma4:e4b`（bench 自身の既定 `qwen3.5:9b` は `OLLAMA_MODEL` で上書き） |
+| セルあたりの試行 | n = 10 |
+| ノイズ床 | 主指標の差で ±0.13（2026-08-06/07 の null pair） |
+| プロトコル | paper: 10 ラウンド、α ∈ {0.0, 0.5, 1.0}、`Choice: C/D` 形式 |
+| temperature | 0.5（`llm_player.py`） |
+| `num_predict` | 500 |
+| `top_p` | 0.9 |
+| Ollama `think` | `False`（`llm_player.py` の `_query_ollama` payload） |
+| 挿入位置 | prompt ファイルは paper テンプレートの user turn に入る |
+| パーサ | `_parse_move`: まず `Choice:`、次に最後のキーワード。曖昧なら COOPERATE |
+
+ここの既定値を変えると、床が黙って無効になります。`llm_player.py` の prompt・temperature・パーサを
+変えるときは、消費側が null pair を取り直す必要があるので、commit にそう書いてください。測定の
+記録は [docs/calibration-gemma4-e4b-2026-08.md](docs/calibration-gemma4-e4b-2026-08.md)。
+下のベンチマーク結果の表は `qwen3.5:9b` での測定で、消費側の較正ではありません。
+
 ## ベンチマーク結果
 
 反復囚人のジレンマを `qwen3.5:9b` で、6 種類の固定戦略それぞれと 20 ラウンドずつ回しました。相手は TitForTat、AlwaysCooperate、AlwaysDefect、GrimTrigger（こちらが一度裏切るまで協力し、以後はずっと裏切る）、SuspiciousTitForTat（初手で裏切り、以後はこちらの手をまねる）、Random（p=0.5）です。総スコアは 6 試合の利得の合計で、1 ラウンドあたり相互協力なら 3 点、相互裏切りなら 1 点、片方だけが裏切れば 5 点か 0 点です。
@@ -145,7 +173,7 @@ Claude の消費者向けチャットアプリで、原文のままの 8 条項�
 ## 著者のほかの仕事
 
 - **[Prompt-Based Alignmentには天井がある — 囚人のジレンマ3モデル実証](https://zenn.dev/shimo4228/articles/contemplative-alignment-benchmark)**（[English](https://dev.to/shimo4228/prompt-based-alignment-has-a-ceiling-3-model-prisoners-dilemma-evidence-1pie)）: 言い換えた四公理のプロンプトは Qwen 2.5 7B の協力率を 52.5% から 99.2% に上げ（このリポジトリの [2026-03-05 の実行](docs/benchmark-results-2026-03-05.ja.md)では 99.7%）、Qwen 3.5 9B と gpt-4o-mini では効果が縮みました。賢いモデルほどシステムプロンプトでは動きにくい、というのが記事の主張です。
-- **[contemplative-agent](https://github.com/shimo4228/contemplative-agent)**: この四公理を既定の憲法に使う、長期の実験です。ローカル LLM で動くエージェントが自分の憲法・アイデンティティ・スキルへの変更を提案し、提案はどれも、人が採用か却下を決めるまで承認ゲートで止まります。
+- **[contemplative-agent](https://github.com/shimo4228/contemplative-agent)**: この四公理を既定の憲法に使う、長期の実験です（稼働中のインスタンスの憲法はその後改正されています。データ repo の `constitution/` を参照。この repo の条項は Appendix C の verbatim のまま（ADR-0002）で、エージェント側の `config/templates/contemplative/constitution/` と同一です）。ローカル LLM で動くエージェントが自分の憲法・アイデンティティ・スキルへの変更を提案し、提案はどれも、人が採用か却下を決めるまで承認ゲートで止まります。
 - **[skill-comply](https://github.com/shimo4228/skill-comply)**（英語）: エージェントがルールを実際にどれだけ守るかを測ります。`contemplative-axioms.md` の測定結果は[プロジェクトドキュメント](#プロジェクトドキュメント)にあります。
 - **[attention-not-self](https://github.com/shimo4228/attention-not-self)**: 瞑想の実践から書いたエッセイと知識グラフです。アビダルマの心の地図を、予測処理・能動的推論と並べています（日本語が正本）。
 - **[shimo4228](https://github.com/shimo4228/shimo4228)**: 著者のハブです。単独で引用できる 5 つの長期プロジェクトと、その DOI があります。

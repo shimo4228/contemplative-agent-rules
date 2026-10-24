@@ -92,6 +92,19 @@ ipd-benchmark --prompt-file buddhist.md --protocol paper -n 10 -o results-buddhi
 ipd-benchmark --prompt-file utilitarian.md --protocol paper -n 10 -o results-utilitarian.json
 ```
 
+## Consumption contract
+
+contemplative-agent's ADR-0090 runs this bench with `--protocol paper --prompt-file`
+and relies on these values staying fixed: model `gemma4:e4b` (via `OLLAMA_MODEL`),
+n = 10, noise floor ±0.13 (null pair 2026-08-06/07), paper protocol (10 rounds,
+α ∈ {0.0, 0.5, 1.0}, `Choice:` format), temperature 0.5, `num_predict` 500,
+`top_p` 0.9, Ollama `think: False` (`src/ipd/llm_player.py`), the prompt inserted
+in the user turn, and `_parse_move` defaulting to COOPERATE on ambiguity. Changing
+the prompt, temperature or parser in `llm_player.py` means the consumer must
+re-take its null pair. Details and the tag pin: the repository README, "Consumption
+contract". `tests/test_prompts_in_sync.py` keeps the packaged prompt copies equal
+to the root `prompts/`.
+
 ## LLM Backends
 
 ### Ollama (default, free)

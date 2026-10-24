@@ -12,7 +12,7 @@ Laukkonen et al. (2025) の四公理 (Mindfulness, Emptiness, Non-Duality, Bound
 
 ルール・プロンプトの改訂、ADR 起草、release 前には、research wiki (Obsidian vault) の対応 concept ページを **read-only** で参照する。wiki は daily-research が積んだノートの合成層であり、contemplative AI 周辺の新研究・論争を追跡している。
 
-- 場所: `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian Vault/wiki/concept/`
+- 場所: 作業者の Obsidian vault の `wiki/concept/`（vault が存在する環境でのみ参照する。無ければ本節は飛ばす。パスは各自の環境で解決し、リポジトリには書かない）
 - 主担当ページ: `Contemplative-AI.md`。隣接: `仏教.md` / `能動的推論.md` / `エージェント帰責.md`
 - 見る節と用途:
   1. **オープンクエスチョン** の「ADR 候補」マーク → 新規 ADR の種

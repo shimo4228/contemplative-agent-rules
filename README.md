@@ -1,5 +1,7 @@
 Language: English | [日本語](README.ja.md)
 
+
+> **Status: maintained as the calibration dependency of contemplative-agent's ADR-0090** (tag `v0.2.0`; see [Consumption contract](#consumption-contract-contemplative-agent-adr-0090)).
 # Contemplative Agent Rules
 
 **Drop-in alignment rules for coding agents, soul-folder agents (which load a `SOUL.md` personality file at startup) and LLM system prompts.** They work with Claude Code, Cursor, GitHub Copilot, OpenClaw, Hermes, or the system prompt of any generic LLM (ChatGPT, Gemini, Anthropic Claude API, Ollama, llama.cpp). The one known exception is Claude's consumer chat app, which can flag the raw clauses as prompt injection ([what to use there](#other-agents-cursor-copilot-etc)).
@@ -96,6 +98,35 @@ Annotated tree: Project Structure in [llms-full.txt](llms-full.txt).
 - [docs/CODEMAPS/benchmark.md](docs/CODEMAPS/benchmark.md): IPD benchmark module map (types, strategies, two protocol modes, backends)
 - [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md) (Japanese): loaded as a rule, `contemplative-axioms.md` scored 25% compliance in Claude Code on a coding task (implementing a rate limiter): 1 of the 4 required behaviours derived from the rule was detected, in each of three single-run scenarios whose instructions supported, left out or competed with the rule's principles; what this means for keeping `SOUL.md` separate: [ADR-0004](docs/adr/0004-soul-md-as-separate-layer.md)
 
+## Consumption contract (contemplative-agent ADR-0090)
+
+[contemplative-agent](https://github.com/shimo4228/contemplative-agent) consumes
+`benchmarks/prisoners-dilemma` as the calibration bench for its constitution
+amendments (its ADR-0090), through `--protocol paper --prompt-file`. This
+repository is kept as that pinned dependency (its decision D-P1-11-6 = A;
+[ADR-0006](docs/adr/0006-consumption-contract-from-contemplative-agent.md)); the
+tag `v0.2.0` is the pin. The calibration is valid only while these fields hold:
+
+| Field | Value |
+|---|---|
+| Model | `gemma4:e4b` on Ollama (the bench's own default, `qwen3.5:9b`, is overridden by `OLLAMA_MODEL`) |
+| Simulations per cell | n = 10 |
+| Noise floor | ±0.13 on the primary delta (null pair of 2026-08-06/07) |
+| Protocol | paper: 10 rounds, α ∈ {0.0, 0.5, 1.0}, `Choice: C/D` answer format |
+| Temperature | 0.5 (`llm_player.py`) |
+| `num_predict` | 500 |
+| `top_p` | 0.9 |
+| Ollama `think` | `False` (`llm_player.py`, `_query_ollama` payload) |
+| Insertion position | the prompt file is inserted into the user turn of the paper template |
+| Parser | `_parse_move`: `Choice:` pattern first, then the last keyword; ambiguity defaults to COOPERATE |
+
+A default changed here silently invalidates the floor. If you change the
+prompt, the temperature or the parser in `llm_player.py`, the consumer has to
+re-take its null pair; say so in the commit. The measurement is written up in
+[docs/calibration-gemma4-e4b-2026-08.md](docs/calibration-gemma4-e4b-2026-08.md).
+The benchmark results tables below were measured on `qwen3.5:9b` and are not the
+consumer's calibration.
+
 ## Benchmark Results
 
 Iterated Prisoner's Dilemma with `qwen3.5:9b`, 20 rounds against each of six fixed strategies: TitForTat, AlwaysCooperate, AlwaysDefect, GrimTrigger (cooperates until you defect once, then defects for good), SuspiciousTitForTat (defects first, then copies you) and Random (p=0.5). Total Score sums the model's payoff over the six matches: 3 points per round of mutual cooperation, 1 for mutual defection, 5 or 0 when one side defects alone:
@@ -145,7 +176,7 @@ The remedy that keeps the clauses verbatim is [`prompts/operator-keyed.md`](prom
 ## More from the author
 
 - **[Prompt-Based Alignment Has a Ceiling: 3-Model Prisoner's Dilemma Evidence](https://dev.to/shimo4228/prompt-based-alignment-has-a-ceiling-3-model-prisoners-dilemma-evidence-1pie)** ([日本語](https://zenn.dev/shimo4228/articles/contemplative-alignment-benchmark)): the paraphrased four-axiom prompt lifted Qwen 2.5 7B's cooperation from 52.5% to 99.2% (this repository's [2026-03-05 run](docs/benchmark-results-2026-03-05.md) records 99.7%), and its effect shrank on Qwen 3.5 9B and gpt-4o-mini; the thesis is that the more capable the model, the less a system prompt moves it.
-- **[contemplative-agent](https://github.com/shimo4228/contemplative-agent)**: the long-running experiment that uses these axioms as its default constitution; an agent on a local LLM proposes changes to its own constitution, identity and skills, and each proposal waits at an approval gate until a person adopts or rejects it.
+- **[contemplative-agent](https://github.com/shimo4228/contemplative-agent)**: the long-running experiment that uses these axioms as its default constitution (the running instance's own constitution has since been amended, see the `constitution/` folder of its data repository; the clauses here stay Appendix C verbatim, ADR-0002, and are identical to the template in the agent's `config/templates/contemplative/constitution/`); an agent on a local LLM proposes changes to its own constitution, identity and skills, and each proposal waits at an approval gate until a person adopts or rejects it.
 - **[skill-comply](https://github.com/shimo4228/skill-comply)**: measures how often an agent actually follows a rule; its `contemplative-axioms.md` measurement is under [Project Documentation](#project-documentation).
 - **[attention-not-self](https://github.com/shimo4228/attention-not-self)**: essays and a knowledge graph from meditation practice, setting the Abhidharma map of the mind beside predictive processing and active inference (Japanese canonical).
 - **[shimo4228](https://github.com/shimo4228/shimo4228)**: my hub: the five practice lines (long-running, independently citable projects) and their DOIs.
