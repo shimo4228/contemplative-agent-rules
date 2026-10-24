@@ -122,6 +122,8 @@ Preliminary results using the paper's protocol (10 rounds, probabilistic opponen
 
 The effect sizes (Cohen's d, the gap between conditions in standard deviations: d=3.00 to 12.73) point the same way as the paper's for the same three opponents (d=7.09, 5.73 and 0.66) and are larger at each. With n=2 per condition these are exploratory, not statistically robust; replication at n=50 is future work. Details: [`docs/benchmark-results-paper-protocol.md`](docs/benchmark-results-paper-protocol.md).
 
+The paper's reported values and what this repository checked, side by side: [`docs/reproduction-scope.md`](docs/reproduction-scope.md).
+
 ## Field Notes — Claude Code adoption
 
 <details>

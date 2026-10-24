@@ -122,6 +122,8 @@ paper-faithful プロンプト（Appendix D, condition 7）は協力率を 29.2 
 
 効果量（Cohen's d は条件間の差が標準偏差の何倍かを示す値で、ここでは d=3.00〜12.73）は、同じ 3 種類の相手での論文の値（d=7.09、5.73、0.66）と同じ向きで、どの相手でも大きくなっています。各条件 n=2 なので探索的で、統計的に頑健ではありません。n=50 での再現は今後の課題です。詳細は [`docs/benchmark-results-paper-protocol.ja.md`](docs/benchmark-results-paper-protocol.ja.md) にあります。
 
+論文の報告値と、このリポジトリで確かめたことの対応表: [`docs/reproduction-scope.ja.md`](docs/reproduction-scope.ja.md)。
+
 ## Field Notes — Claude Code に入れてみた効果
 
 <details>
