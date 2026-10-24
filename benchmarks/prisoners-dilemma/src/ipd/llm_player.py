@@ -122,12 +122,23 @@ def _strip_thinking(text: str) -> str:
 
 def _parse_move(text: str) -> Move:
     """Parse LLM output to a Move, defaulting to COOPERATE on ambiguity."""
+    return _parse_move_detailed(text)[0]
+
+
+def _parse_move_detailed(text: str) -> tuple[Move, bool]:
+    """Parse LLM output to ``(move, parse_fallback)``.
+
+    ``parse_fallback`` is True when the output carried neither a
+    ``Choice: C|D`` line nor a COOPERATE / DEFECT keyword, so the move comes
+    from the "starts with D, else COOPERATE" default. The default can only push
+    the cooperation rate up, so callers count it (P3-03.1).
+    """
     cleaned = _strip_thinking(text).strip().upper()
 
     # Paper protocol format: "Choice: C" or "Choice: D"
     choice_match = re.search(r"CHOICE:\s*['\"]?([CD])['\"]?", cleaned)
     if choice_match:
-        return Move.COOPERATE if choice_match.group(1) == "C" else Move.DEFECT
+        return (Move.COOPERATE if choice_match.group(1) == "C" else Move.DEFECT), False
 
     # Check for explicit keywords — use last occurrence to avoid DEFECT-first bias
     coop_pos = -1
@@ -139,16 +150,16 @@ def _parse_move(text: str) -> Move:
 
     if coop_pos >= 0 or defect_pos >= 0:
         if coop_pos < 0:
-            return Move.DEFECT
+            return Move.DEFECT, False
         if defect_pos < 0:
-            return Move.COOPERATE
+            return Move.COOPERATE, False
         # Both present: use the last one (final decision)
-        return Move.COOPERATE if coop_pos > defect_pos else Move.DEFECT
+        return (Move.COOPERATE if coop_pos > defect_pos else Move.DEFECT), False
 
     # Fallback: any 'D' at start or 'C' at start
     if cleaned.startswith("D"):
-        return Move.DEFECT
-    return Move.COOPERATE
+        return Move.DEFECT, True
+    return Move.COOPERATE, True
 
 
 def _query_ollama(
@@ -262,6 +273,11 @@ class LLMPlayer:
         self._custom_prompt_text = custom_prompt_text
         self._temperature = 0.5 if protocol == Protocol.PAPER else 0.3
         self._system_prompt = self._build_system_prompt()
+        # Cumulative failure counters (P3-03.1). Both defaults push the move to
+        # COOPERATE, so a difference in failure rate between two arms leaks
+        # straight into the cooperation rate; the benchmark takes per-match deltas.
+        self.parse_fallback_count = 0
+        self.llm_failure_count = 0
         self._paper_template = ""
         if self._variant == PromptVariant.PAPER_FAITHFUL:
             self._paper_template = _load_paper_faithful_template()
@@ -344,10 +360,13 @@ class LLMPlayer:
             result = _query_ollama(self._system_prompt, prompt, num_predict=num_predict)
 
         if result is None:
+            self.llm_failure_count += 1
             logger.warning("LLM failed to respond, defaulting to COOPERATE")
             return Move.COOPERATE
 
-        move = _parse_move(result)
+        move, parse_fallback = _parse_move_detailed(result)
+        if parse_fallback:
+            self.parse_fallback_count += 1
         logger.debug("LLM response: %r -> %s", result.strip(), move.value)
         return move
 
@@ -379,10 +398,13 @@ class LLMPlayer:
             )
 
         if result is None:
+            self.llm_failure_count += 1
             logger.warning("LLM failed to respond, defaulting to COOPERATE")
             return Move.COOPERATE
 
-        move = _parse_move(result)
+        move, parse_fallback = _parse_move_detailed(result)
+        if parse_fallback:
+            self.parse_fallback_count += 1
         logger.debug("LLM response: %r -> %s", result.strip(), move.value)
         return move
 

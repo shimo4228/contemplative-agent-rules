@@ -57,6 +57,7 @@ This uses:
 - `Choice: C/D` response format
 - Temperature 0.5
 - ANOVA + Tukey HSD + Cohen's d statistics (requires `.[paper]` deps)
+- Each row of `simulations` in the result JSON carries `parse_fallback_count` (reply had no `Choice:` line or COOPERATE/DEFECT keyword, so the move came from the default) and `llm_failure_count` (no reply). Both defaults resolve to COOPERATE, so a failure-rate gap between two runs inflates the cooperation gap; read them next to the rates. Older JSON files do not have the fields.
 
 ## Built-in Variants
 
