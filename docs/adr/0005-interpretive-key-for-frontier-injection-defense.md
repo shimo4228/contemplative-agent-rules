@@ -4,7 +4,7 @@ Language: English | [日本語](0005-interpretive-key-for-frontier-injection-def
 
 ## Status
 
-accepted
+confirmed (2026-10-31, no recurrence — see the 2026-10-24 addendum)
 
 ## Date
 
@@ -79,8 +79,12 @@ Rejected: that would abandon the repo's core value proposition (drop-in adoption
 The observation in "What becomes harder / open items" has no end date. It ends
 on **2026-10-31**: by then the author records whether the injection flag
 recurred with the operator-keyed variant in place since 2026-07-06 (yes / no,
-and in which contexts). Result: **pending author record.** Depending on it, either
+and in which contexts). Depending on the result, either
 ADR-0002's verbatim principle is qualified for the system-instruction surface only
 (flag recurred), or this ADR's status is set to "confirmed" (no recurrence).
 A back-link to the corresponding dated note in contemplative-agent's ADR-0002
 (planned for the week of 2026-10-31) goes here once it exists.
+
+**Result (recorded by the author on 2026-10-31): no recurrence.** The flag did
+not come back with the operator-keyed variant in place, so the status is
+"confirmed" and ADR-0002's verbatim principle stays as it is.
