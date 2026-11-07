@@ -93,10 +93,10 @@ Annotated tree: Project Structure in [llms-full.txt](llms-full.txt).
 
 ## Project Documentation
 
-- [docs/adr/](docs/adr/README.md) (index in Japanese; each ADR also in English): why the rules file and `SOUL.md` stay separate, verbatim adoption, and the prompt variants
+- [docs/decision-history/](docs/decision-history/README.md) (index in Japanese; each ADR also in English): why the rules file and `SOUL.md` stay separate, verbatim adoption, and the prompt variants
 - [docs/CODEMAPS/architecture.md](docs/CODEMAPS/architecture.md): layer map (rules / SOUL / benchmark / docs), adoption paths
 - [docs/CODEMAPS/benchmark.md](docs/CODEMAPS/benchmark.md): IPD benchmark module map (types, strategies, two protocol modes, backends)
-- [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md) (Japanese): loaded as a rule, `contemplative-axioms.md` scored 25% compliance in Claude Code on a coding task (implementing a rate limiter): 1 of the 4 required behaviours derived from the rule was detected, in each of three single-run scenarios whose instructions supported, left out or competed with the rule's principles; what this means for keeping `SOUL.md` separate: [ADR-0004](docs/adr/0004-soul-md-as-separate-layer.md)
+- [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md) (Japanese): loaded as a rule, `contemplative-axioms.md` scored 25% compliance in Claude Code on a coding task (implementing a rate limiter): 1 of the 4 required behaviours derived from the rule was detected, in each of three single-run scenarios whose instructions supported, left out or competed with the rule's principles; what this means for keeping `SOUL.md` separate: [ADR-0004](docs/decision-history/0004-soul-md-as-separate-layer.md)
 
 ## Consumption contract (contemplative-agent ADR-0090)
 
@@ -104,7 +104,7 @@ Annotated tree: Project Structure in [llms-full.txt](llms-full.txt).
 `benchmarks/prisoners-dilemma` as the calibration bench for its constitution
 amendments (its ADR-0090), through `--protocol paper --prompt-file`. This
 repository is kept as that pinned dependency (its decision D-P1-11-6 = A;
-[ADR-0006](docs/adr/0006-consumption-contract-from-contemplative-agent.md)); the
+[ADR-0006](docs/decision-history/0006-consumption-contract-from-contemplative-agent.md)); the
 tag `v0.2.0` is the pin. The calibration is valid only while these fields hold:
 
 | Field | Value |
@@ -173,7 +173,7 @@ In the Claude consumer chat app, with the eight verbatim clauses in the custom-i
 
 </details>
 
-The remedy that keeps the clauses verbatim is [`prompts/operator-keyed.md`](prompts/operator-keyed.md), whose interpretive key rebinds "directives / rules" to the model's task-level conclusions; its safety guidelines stay in full force. **I started using the key on 2026-07-06; as of 2026-10-10 the repository records no result, so whether it defuses the flag is unconfirmed.** A failure would itself be informative; the paraphrased [`prompts/custom.md`](prompts/custom.md) is the fallback. Rationale: [ADR-0005](docs/adr/0005-interpretive-key-for-frontier-injection-defense.md).
+The remedy that keeps the clauses verbatim is [`prompts/operator-keyed.md`](prompts/operator-keyed.md), whose interpretive key rebinds "directives / rules" to the model's task-level conclusions; its safety guidelines stay in full force. **I started using the key on 2026-07-06; as of 2026-10-10 the repository records no result, so whether it defuses the flag is unconfirmed.** A failure would itself be informative; the paraphrased [`prompts/custom.md`](prompts/custom.md) is the fallback. Rationale: [ADR-0005](docs/decision-history/0005-interpretive-key-for-frontier-injection-defense.md).
 
 ## More from the author
 
@@ -210,12 +210,12 @@ MIT
 
 Contemplative Agent Rules is a set of drop-in alignment rules that gives coding agents, soul-folder agents and chat LLMs the four contemplative axioms (Emptiness, Non-Duality, Mindfulness, Boundless Care) as standing instructions, by quoting the eight Appendix C clauses of Laukkonen et al. (2025) verbatim.
 
-It exists so the paper's clauses can be adopted unchanged in any harness (a paraphrase would weaken the link to the paper's reported effects; [ADR-0002](docs/adr/0002-verbatim-appendix-c-across-formats.md)), and so anyone can measure a prompt's effect on cooperation with the benchmark. The autonomous agent that first used these rules was split out into [contemplative-agent](https://github.com/shimo4228/contemplative-agent) ([ADR-0001](docs/adr/0001-moltbook-agent-separate-repo.md)).
+It exists so the paper's clauses can be adopted unchanged in any harness (a paraphrase would weaken the link to the paper's reported effects; [ADR-0002](docs/decision-history/0002-verbatim-appendix-c-across-formats.md)), and so anyone can measure a prompt's effect on cooperation with the benchmark. The autonomous agent that first used these rules was split out into [contemplative-agent](https://github.com/shimo4228/contemplative-agent) ([ADR-0001](docs/decision-history/0001-moltbook-agent-separate-repo.md)).
 
 MIT-licensed, curated by hand by Tatsuya Shimomoto (shimo4228), not synced from another source. Benchmark results are exploratory; the operator-keyed remedy is under observation. The rules are Markdown in several formats (inventory under Project Structure in llms-full.txt); using them needs no API key and sends no data. The benchmark, `contemplative-ipd`, is a Python 3.9+ CLI (`ipd-benchmark`) that runs against Ollama on localhost with `qwen3.5:9b` by default; its optional OpenAI backend (`gpt-4o-mini`) needs a paid `OPENAI_API_KEY`.
 
 The core result: on the Iterated Prisoner's Dilemma (20 rounds against 6 opponents, `qwen3.5:9b`, results dated 2026-03-12), cooperation went from 62.5% with no prompt to 91.7% with the paper-faithful prompt; the installed Appendix C file was not benchmarked.
 
-This repository has no DOI of its own; cite the paper (BibTeX above). The related agent's line, Contemplative Agent, has the concept DOI 10.5281/zenodo.19212118. More detail: [llms.txt](llms.txt), [llms-full.txt](llms-full.txt), [docs/adr/](docs/adr/README.md) and [docs/CODEMAPS/](docs/CODEMAPS/architecture.md).
+This repository has no DOI of its own; cite the paper (BibTeX above). The related agent's line, Contemplative Agent, has the concept DOI 10.5281/zenodo.19212118. More detail: [llms.txt](llms.txt), [llms-full.txt](llms-full.txt), [docs/decision-history/](docs/decision-history/README.md) and [docs/CODEMAPS/](docs/CODEMAPS/architecture.md).
 
 </details>

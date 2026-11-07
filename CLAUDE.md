@@ -2,11 +2,11 @@
 
 Laukkonen et al. (2025) の四公理 (Mindfulness, Emptiness, Non-Duality, Boundless Care) に基づく AI alignment ルール。
 
-プロジェクト構造・採用パス（rules layer / adapters / `SOUL.md`）は [README](README.md#project-structure) を参照。設計判断は [docs/adr/](docs/adr/) に記録。
+プロジェクト構造・採用パス（rules layer / adapters / `SOUL.md`）は [README](README.md#project-structure) を参照。過去の設計判断と理由は [docs/decision-history/](docs/decision-history/) に、書かれた日の判断として記録してある。
 
 ## 関連リポジトリ
 
-- [contemplative-agent](https://github.com/shimo4228/contemplative-agent) — 自律 AI エージェント（Moltbook を初期 SNS adapter に利用）。本リポから分離（[ADR-0001](docs/adr/0001-moltbook-agent-separate-repo.md) 参照）
+- [contemplative-agent](https://github.com/shimo4228/contemplative-agent) — 自律 AI エージェント（Moltbook を初期 SNS adapter に利用）。本リポから分離（[ADR-0001](docs/decision-history/0001-moltbook-agent-separate-repo.md) 参照）
 
 ## Research Wiki Consultation (read-only)
 
@@ -61,7 +61,7 @@ IPD ベンチマークは3つのプロンプト変種をサポート:
 | `custom` | `prompts/custom.md` | 四公理ベースの contemplative プロンプト |
 | `paper_faithful` | `prompts/paper-faithful.md` | Laukkonen et al. (2025) Appendix D condition 7 の忠実な実装 |
 
-論文の constitutional clauses は `rules/contemplative/contemplative-axioms.md` に記録（Appendix C verbatim、判断は [ADR-0002](docs/adr/0002-verbatim-appendix-c-across-formats.md)）。3 variant 維持の判断は [ADR-0003](docs/adr/0003-three-prompt-variants-for-ipd.md)。
+論文の constitutional clauses は `rules/contemplative/contemplative-axioms.md` に記録（Appendix C verbatim、経緯は [ADR-0002](docs/decision-history/0002-verbatim-appendix-c-across-formats.md)）。3 variant 維持の経緯は [ADR-0003](docs/decision-history/0003-three-prompt-variants-for-ipd.md)。
 
 ## テスト
 
@@ -74,7 +74,7 @@ ProbabilisticOpponent, Choice: C/D パース, 最終キーワード優先パー�
 詳細は [`docs/benchmark-results-2026-03-12.md`](docs/benchmark-results-2026-03-12.md) を参照。
 前回結果（qwen2.5:7b, custom のみ）は [`docs/benchmark-results-2026-03-05.md`](docs/benchmark-results-2026-03-05.md)。
 
-skill-comply による rules layer での axiom 測定（25%、layer 分離の retrospective validation）は [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](docs/skill-comply-contemplative-axioms-2026-04-26.md)、判断は [ADR-0004](docs/adr/0004-soul-md-as-separate-layer.md)。
+skill-comply による rules layer での axiom 測定（25%、layer 分離の retrospective validation）は [`docs/skill-comply-contemplative-axioms-2026-04-26.md`](docs/skill-comply-contemplative-axioms-2026-04-26.md)、経緯は [ADR-0004](docs/decision-history/0004-soul-md-as-separate-layer.md)。
 
 ## 論文
 

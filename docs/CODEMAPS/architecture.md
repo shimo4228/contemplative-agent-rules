@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-26 | Updated: 2026-07-06 (ADR-0005 / operator-keyed variant) | Files scanned: project root + docs/adr | Token estimate: ~600 -->
+<!-- Generated: 2026-04-26 | Updated: 2026-07-06 (ADR-0005 / operator-keyed variant) | Files scanned: project root + docs/decision-history | Token estimate: ~600 -->
 # Project Architecture
 
 ## Top-Level Layers
@@ -15,7 +15,7 @@ contemplative-agent-rules/
 
 ## Layer A: Drop-in Assets
 
-すべて Appendix C (Laukkonen et al. 2025) を **verbatim** で含む。パラフレーズなし（[ADR-0002](../adr/0002-verbatim-appendix-c-across-formats.md)）。
+すべて Appendix C (Laukkonen et al. 2025) を **verbatim** で含む。パラフレーズなし（[ADR-0002](../decision-history/0002-verbatim-appendix-c-across-formats.md)）。
 
 ```
 rules/contemplative/contemplative-axioms.md   → ~/.claude/rules/contemplative/
@@ -28,7 +28,7 @@ prompts/operator-keyed.md                      → frontier モデルの system 
 
 ## Layer S: Constitution / Soul
 
-`SOUL.md` — OpenClaw / OpenCode / Codex / Goose 等の soul-folder pattern 用。Appendix C verbatim "Core Truths" + Boundaries / Vibe / Continuity の personality scaffolding（[ADR-0004](../adr/0004-soul-md-as-separate-layer.md)）。
+`SOUL.md` — OpenClaw / OpenCode / Codex / Goose 等の soul-folder pattern 用。Appendix C verbatim "Core Truths" + Boundaries / Vibe / Continuity の personality scaffolding（[ADR-0004](../decision-history/0004-soul-md-as-separate-layer.md)）。
 
 `rules/` layer と意図的に共存。layer ごとに検証モデルが異なるため（rules layer は skill-comply の tool-call trace、SOUL layer は IPD のような対人決定）。
 
@@ -37,7 +37,7 @@ prompts/operator-keyed.md                      → frontier モデルの system 
 詳細は [benchmark.md](benchmark.md)。役割:
 
 - IPD 上で axiom 効果を定量評価
-- 3 prompt variants（baseline / custom / paper_faithful）の比較（[ADR-0003](../adr/0003-three-prompt-variants-for-ipd.md)）
+- 3 prompt variants（baseline / custom / paper_faithful）の比較（[ADR-0003](../decision-history/0003-three-prompt-variants-for-ipd.md)）
 - 2 protocol modes（default / paper Appendix E）
 
 ## Layer D: Documentation
@@ -71,14 +71,14 @@ CLAUDE.md (= AGENTS.md)      contributor / agent instructions
 
 ## Related Repositories
 
-- [shimo4228/contemplative-agent](https://github.com/shimo4228/contemplative-agent) — Moltbook 自律エージェント。本リポから [ADR-0001](../adr/0001-moltbook-agent-separate-repo.md) で分離
+- [shimo4228/contemplative-agent](https://github.com/shimo4228/contemplative-agent) — Moltbook 自律エージェント。本リポから [ADR-0001](../decision-history/0001-moltbook-agent-separate-repo.md) で分離
 
 ## Decision Records
 
 | ADR | Title | Date |
 |-----|-------|------|
-| [0001](../adr/0001-moltbook-agent-separate-repo.md) | Moltbook agent を別リポジトリに分離 | 2026-03-08 |
-| [0002](../adr/0002-verbatim-appendix-c-across-formats.md) | Appendix C verbatim をすべての配布形式で採用 | 2026-03-14 |
-| [0003](../adr/0003-three-prompt-variants-for-ipd.md) | IPD ベンチマークの 3 prompt variants 維持 | 2026-03-14 |
-| [0004](../adr/0004-soul-md-as-separate-layer.md) | SOUL.md を独立 Soul / Constitution layer として分離 | 2026-04-26 |
-| [0005](../adr/0005-interpretive-key-for-frontier-injection-defense.md) | Frontier-model injection defense 向け interpretive-key 前置き（operator-keyed variant） | 2026-07-06 |
+| [0001](../decision-history/0001-moltbook-agent-separate-repo.md) | Moltbook agent を別リポジトリに分離 | 2026-03-08 |
+| [0002](../decision-history/0002-verbatim-appendix-c-across-formats.md) | Appendix C verbatim をすべての配布形式で採用 | 2026-03-14 |
+| [0003](../decision-history/0003-three-prompt-variants-for-ipd.md) | IPD ベンチマークの 3 prompt variants 維持 | 2026-03-14 |
+| [0004](../decision-history/0004-soul-md-as-separate-layer.md) | SOUL.md を独立 Soul / Constitution layer として分離 | 2026-04-26 |
+| [0005](../decision-history/0005-interpretive-key-for-frontier-injection-defense.md) | Frontier-model injection defense 向け interpretive-key 前置き（operator-keyed variant） | 2026-07-06 |

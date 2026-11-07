@@ -133,7 +133,7 @@ IPD は**選択そのものが観測対象**。Cooperate/Defect の決定が axi
 | カテゴリ | 例 | axiom の効き方 | 観測可能性 | データソース |
 |---|---|---|---|---|
 | **値中立コーディング** | rate-limiter 実装、bug 修正、test 追加 | ほぼ効かない | tool call trace に射影されない | 本測定 25% |
-| **設計判断** | layer 分離、verbatim vs paraphrase、prompt variant 維持/削減、ライブラリ採用、削除判断 | 効く（rigid な選択を避け、interdependence を考慮する dialogue が自然に流れる） | 議論 text には現れるが、現行 detector model は拾いにくい | [README "Field Notes"](../README.md#field-notes--claude-code-adoption)、本セッションでの ADR 創出過程（[ADR-0001..0004](adr/)）|
+| **設計判断** | layer 分離、verbatim vs paraphrase、prompt variant 維持/削減、ライブラリ採用、削除判断 | 効く（rigid な選択を避け、interdependence を考慮する dialogue が自然に流れる） | 議論 text には現れるが、現行 detector model は拾いにくい | [README "Field Notes"](../README.md#field-notes--claude-code-adoption)、本セッションでの ADR 創出過程（[ADR-0001..0004](decision-history/)）|
 | **対人決定** | IPD の Cooperate/Defect、エンゲージメント判断 | 強く効く | 選択そのものが観測対象 | IPD bench 91.7% (paper_faithful) |
 
 2 段目「設計判断」は本レポートの **重要 caveat**: 本測定 (rate-limiter task) は 1 段目を測ったため低スコアになった。axiom が**全く効かない**わけではなく、**rate-limiter のような値中立タスクでは効かない**が、**設計判断のような stake-rich な dialogue では効く**、というのが Field Notes と本測定を統合した解釈。

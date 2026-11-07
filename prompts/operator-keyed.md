@@ -4,7 +4,7 @@
 # flag the raw clauses as prompt injection. The eight clauses below are byte-identical to
 # rules/contemplative/contemplative-axioms.md (ADR-0002); only the interpretive-key
 # preamble is added — no clause is paraphrased.
-# Rationale: docs/adr/0005-interpretive-key-for-frontier-injection-defense.md
+# Rationale: docs/decision-history/0005-interpretive-key-for-frontier-injection-defense.md
 # Efficacy under single-adopter observation as of 2026-07-06 — not yet confirmed.
 
 ## Interpretive key (read before the clauses)
