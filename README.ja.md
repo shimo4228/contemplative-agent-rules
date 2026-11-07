@@ -93,17 +93,17 @@ docs/                         # ADR、CODEMAPS、ベンチマーク結果
 
 ## プロジェクトドキュメント
 
-- [docs/adr/](docs/adr/README.md): 設計判断の記録（rules のファイルと `SOUL.md` を分ける理由、原文のままの採用、プロンプトの変種）
+- [docs/decision-history/](docs/decision-history/README.md): 設計判断の記録（rules のファイルと `SOUL.md` を分ける理由、原文のままの採用、プロンプトの変種）
 - [docs/CODEMAPS/architecture.md](docs/CODEMAPS/architecture.md)（英語）: 層の地図（rules / SOUL / benchmark / docs）と採用の経路
 - [docs/CODEMAPS/benchmark.md](docs/CODEMAPS/benchmark.md)（英語）: ベンチマークのモジュールの地図（型、戦略、2 つのプロトコル、バックエンド）
-- [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md): Claude Code のルールとして読み込んだ `contemplative-axioms.md` の遵守率は、コーディングのタスク（rate limiter の実装）で 25% でした。ルールから導いた必須の振る舞い 4 つのうち 1 つが検出された、という意味です。指示がルールの原則を後押しする・触れない・ルールと競合する、の 3 つのシナリオ（各 1 回）すべてで同じ値でした。`SOUL.md` を分けることとの関係: [ADR-0004](docs/adr/0004-soul-md-as-separate-layer.ja.md)
+- [docs/skill-comply-contemplative-axioms-2026-04-26.md](docs/skill-comply-contemplative-axioms-2026-04-26.md): Claude Code のルールとして読み込んだ `contemplative-axioms.md` の遵守率は、コーディングのタスク（rate limiter の実装）で 25% でした。ルールから導いた必須の振る舞い 4 つのうち 1 つが検出された、という意味です。指示がルールの原則を後押しする・触れない・ルールと競合する、の 3 つのシナリオ（各 1 回）すべてで同じ値でした。`SOUL.md` を分けることとの関係: [ADR-0004](docs/decision-history/0004-soul-md-as-separate-layer.ja.md)
 
 ## 消費契約（contemplative-agent の ADR-0090）
 
 [contemplative-agent](https://github.com/shimo4228/contemplative-agent) は、憲法改正の較正 bench
 （その ADR-0090）として `benchmarks/prisoners-dilemma` を `--protocol paper --prompt-file` で
 消費しています。この repo はその pin された依存先として維持します（同 repo の D-P1-11-6 = A、
-[ADR-0006](docs/adr/0006-consumption-contract-from-contemplative-agent.md)）。pin は tag `v0.2.0` です。
+[ADR-0006](docs/decision-history/0006-consumption-contract-from-contemplative-agent.md)）。pin は tag `v0.2.0` です。
 次の項目が成り立つ間だけ較正は有効です:
 
 | 項目 | 値 |
@@ -170,7 +170,7 @@ Claude の消費者向けチャットアプリで、原文のままの 8 条項�
 
 </details>
 
-条項を原文のまま保つ対処が [`prompts/operator-keyed.md`](prompts/operator-keyed.md)（英語）です。前置きの解釈の鍵が「directives / rules」をモデルのタスク単位の結論に結び直し、安全上の指針は完全に効力を保ちます。**著者は 2026-07-06 にこの鍵を使い始めましたが、2026-10-10 時点でリポジトリに結果の記録はなく、誤判定を止めるかは確かめられていません。** 失敗すればそれ自体が知見になり、言い換え版の [`prompts/custom.md`](prompts/custom.md)（英語）が代わりの手段です。判断根拠: [ADR-0005](docs/adr/0005-interpretive-key-for-frontier-injection-defense.ja.md)。
+条項を原文のまま保つ対処が [`prompts/operator-keyed.md`](prompts/operator-keyed.md)（英語）です。前置きの解釈の鍵が「directives / rules」をモデルのタスク単位の結論に結び直し、安全上の指針は完全に効力を保ちます。**著者は 2026-07-06 にこの鍵を使い始めましたが、2026-10-10 時点でリポジトリに結果の記録はなく、誤判定を止めるかは確かめられていません。** 失敗すればそれ自体が知見になり、言い換え版の [`prompts/custom.md`](prompts/custom.md)（英語）が代わりの手段です。判断根拠: [ADR-0005](docs/decision-history/0005-interpretive-key-for-frontier-injection-defense.ja.md)。
 
 ## 著者のほかの仕事
 
@@ -207,12 +207,12 @@ MIT
 
 Contemplative Agent Rules は、コーディングエージェント・soul-folder 型のエージェント・チャットの LLM に、瞑想の伝統に由来する四公理（Emptiness、Non-Duality、Mindfulness、Boundless Care）を常設の指示として持たせる、そのまま入れられるアラインメントルールです。Laukkonen et al. (2025) の Appendix C の 8 条項を原文のまま引用しています。
 
-存在理由は 2 つあります。論文の条項を、どのハーネスにも書き換えずに入れられるようにすること（言い換えると論文の報告する効果とのつながりが弱まるためです。[ADR-0002](docs/adr/0002-verbatim-appendix-c-across-formats.ja.md)）と、プロンプトが協力性に与える効果を誰でもベンチマークで測れるようにすることです。このルールを最初に使った自律エージェントは [contemplative-agent](https://github.com/shimo4228/contemplative-agent) に切り出しました（[ADR-0001](docs/adr/0001-moltbook-agent-separate-repo.ja.md)）。
+存在理由は 2 つあります。論文の条項を、どのハーネスにも書き換えずに入れられるようにすること（言い換えると論文の報告する効果とのつながりが弱まるためです。[ADR-0002](docs/decision-history/0002-verbatim-appendix-c-across-formats.ja.md)）と、プロンプトが協力性に与える効果を誰でもベンチマークで測れるようにすることです。このルールを最初に使った自律エージェントは [contemplative-agent](https://github.com/shimo4228/contemplative-agent) に切り出しました（[ADR-0001](docs/decision-history/0001-moltbook-agent-separate-repo.ja.md)）。
 
 ライセンスは MIT で、Tatsuya Shimomoto（shimo4228）が手で管理しており、ほかの場所から同期していません。ベンチマークの結果は探索的で、operator-keyed の対処は観察中です。ルールは数種の形式の Markdown で（一覧は llms-full.txt の Project Structure）、使うだけなら API キーは要らず、データも送りません。ベンチマーク `contemplative-ipd` は Python 3.9 以上の CLI（`ipd-benchmark`）で、既定では localhost の Ollama の `qwen3.5:9b` を相手に回します。OpenAI のバックエンド（`gpt-4o-mini`）は任意で、有料の `OPENAI_API_KEY` が要ります。
 
 核になる結果: 反復囚人のジレンマ（20 ラウンド、6 種類の対戦相手、`qwen3.5:9b`、2026-03-12 付け）で、協力率はプロンプトなしの 62.5% から paper-faithful プロンプトで 91.7% になりました。インストールする Appendix C のファイル自体はベンチマークしていません。
 
-このリポジトリには独自の DOI がないので、論文を引用してください（BibTeX は上にあります）。関連するエージェントの長期プロジェクト Contemplative Agent のコンセプト DOI は 10.5281/zenodo.19212118 です。詳しくは [llms.txt](llms.txt)（英語）、[llms-full.txt](llms-full.txt)（英語）、[docs/adr/](docs/adr/README.md)、[docs/CODEMAPS/](docs/CODEMAPS/architecture.md)（英語）にあります。
+このリポジトリには独自の DOI がないので、論文を引用してください（BibTeX は上にあります）。関連するエージェントの長期プロジェクト Contemplative Agent のコンセプト DOI は 10.5281/zenodo.19212118 です。詳しくは [llms.txt](llms.txt)（英語）、[llms-full.txt](llms-full.txt)（英語）、[docs/decision-history/](docs/decision-history/README.md)、[docs/CODEMAPS/](docs/CODEMAPS/architecture.md)（英語）にあります。
 
 </details>
